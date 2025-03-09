@@ -2241,4 +2241,912 @@ function determineCompanyType(description) {
 }
 
 /**
- * Determine product
+ * Determine product category from product name and description
+ * @param {string} name - Product name
+ * @param {string} description - Product description
+ * @returns {string} Product category
+ */
+function determineProductCategory(name, description) {
+  const text = (name + " " + (description || "")).toLowerCase();
+  
+  const categoryPatterns = [
+    { pattern: /\b(?:food|meal|snack|drink|beverage|juice|water|soda|coffee|tea)\b/i, category: "Food & Beverage" },
+    { pattern: /\b(?:tofu|seitan|vegan|plant-based|vegetarian)\b/i, category: "Plant-based Foods" },
+    { pattern: /\b(?:clothing|shirt|pants|jacket|dress|apparel|wear|fashion)\b/i, category: "Clothing" },
+    { pattern: /\b(?:electronics|device|gadget|computer|laptop|phone|headphone|speaker)\b/i, category: "Electronics" },
+    { pattern: /\b(?:furniture|chair|table|sofa|bed|cabinet|desk)\b/i, category: "Furniture" },
+    { pattern: /\b(?:beauty|cosmetic|makeup|skincare|perfume|fragrance)\b/i, category: "Beauty & Personal Care" },
+    { pattern: /\b(?:book|novel|textbook|magazine|publication)\b/i, category: "Books & Media" },
+    { pattern: /\b(?:toy|game|puzzle|board game|video game)\b/i, category: "Toys & Games" },
+    { pattern: /\b(?:tool|hardware|equipment|machinery|device)\b/i, category: "Tools & Equipment" },
+    { pattern: /\b(?:sports|fitness|exercise|workout|athletic)\b/i, category: "Sports & Fitness" }
+  ];
+  
+  for (const {pattern, category} of categoryPatterns) {
+    if (pattern.test(text)) {
+      return category;
+    }
+  }
+  
+  return "Other";
+}
+
+/**
+ * Extract structured data (JSON-LD) from HTML content
+ * @param {string} content - HTML content
+ * @return {Object} Structured data object
+ */
+function extractStructuredData(content) {
+  try {
+    const jsonLdMatch = content.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
+    if (jsonLdMatch) {
+      return JSON.parse(jsonLdMatch[1]);
+    }
+    return {};
+  } catch (e) {
+    console.error(`Error extracting structured data: ${e.message}`);
+    return {};
+  }
+}
+
+/**
+ * Clean HTML content to plain text
+ * @param {string} html - HTML content
+ * @return {string} Plain text
+ */
+function cleanHtml(html) {
+  if (!html) return '';
+  
+  // Remove HTML tags
+  let text = html.replace(/<[^>]+>/g, ' ');
+  
+  // Decode HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&apos;/g, "'");
+  text = text.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+  
+  // Normalize whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+  
+  return text;
+}
+
+/**
+ * Resolve relative URL to absolute URL
+ * @param {string} url - Relative or absolute URL
+ * @param {string} base - Base URL
+ * @return {string} Absolute URL
+ */
+function resolveUrl(url, base) {
+  try {
+    // Check if URL is already absolute
+    if (url.match(/^https?:\/\//)) {
+      return url;
+    }
+    
+    // Handle protocol-relative URLs
+    if (url.startsWith('//')) {
+      const baseProtocol = base.split('://')[0];
+      return `${baseProtocol}:${url}`;
+    }
+    
+    // Parse base URL
+    let baseUrl = base;
+    if (!baseUrl.endsWith('/')) {
+      // Remove path component if base doesn't end with /
+      const lastSlashIndex = baseUrl.lastIndexOf('/');
+      if (lastSlashIndex > 8) { // 8 is the minimum index for 'http://' or 'https://'
+        baseUrl = baseUrl.substring(0, lastSlashIndex + 1);
+      } else {
+        baseUrl = baseUrl + '/';
+      }
+    }
+    
+    // Handle root-relative URLs
+    if (url.startsWith('/')) {
+      // Extract domain from base URL
+      const domainMatch = baseUrl.match(/^(https?:\/\/[^/]+)\//);
+      if (domainMatch) {
+        return domainMatch[1] + url;
+      }
+      return baseUrl + url.substring(1);
+    }
+    
+    // Handle relative URLs
+    return baseUrl + url;
+  } catch (e) {
+    console.error(`Error resolving URL: ${e.message}`);
+    return url;
+  }
+}
+
+/**
+ * Check if two URLs are from the same domain
+ * @param {string} url1 - First URL
+ * @param {string} url2 - Second URL
+ * @return {boolean} Whether URLs are from the same domain
+ */
+function isSameDomain(url1, url2) {
+  try {
+    // Extract domain from URLs
+    const getDomain = (url) => {
+      const match = url.match(/^https?:\/\/([^/]+)/i);
+      return match ? match[1] : '';
+    };
+    
+    const domain1 = getDomain(url1);
+    const domain2 = getDomain(url2);
+    
+    // Compare domains
+    return domain1 === domain2;
+  } catch (e) {
+    console.error(`Error comparing domains: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * Extract domain parts from URL for analysis
+ * @param {string} url - URL to analyze
+ * @return {Array} Domain parts
+ */
+function extractDomainParts(url) {
+  try {
+    const domainMatch = url.match(/^https?:\/\/([^/]+)/i);
+    if (domainMatch) {
+      const domain = domainMatch[1];
+      // Split domain into parts and remove common TLDs
+      return domain.split('.')
+        .filter(part => !['com', 'org', 'net', 'edu', 'gov', 'co', 'io', 'ai', 'app'].includes(part));
+    }
+    return [];
+  } catch (e) {
+    console.error(`Error extracting domain parts: ${e.message}`);
+    return [];
+  }
+}
+
+/**
+ * Enrich the extracted data with AI
+ * @param {Object} data - Extracted data
+ * @param {Object} config - Configuration options
+ * @return {Object} Enriched data
+ */
+function enrichDataWithAI(data, config) {
+  try {
+    // Skip if no API key or endpoint
+    if (!config.API.AZURE.OPENAI.KEY || !config.API.AZURE.OPENAI.ENDPOINT) {
+      return null;
+    }
+    
+    const apiKey = config.API.AZURE.OPENAI.KEY;
+    const endpoint = config.API.AZURE.OPENAI.ENDPOINT;
+    const deployment = config.API.AZURE.OPENAI.DEPLOYMENT;
+    
+    // Prepare prompt for company data enrichment
+    const prompt = `
+      Analyze this company data and provide enriched information:
+      
+      Company Name: ${data.companyName || 'Unknown'}
+      Company Description: ${data.companyDescription || 'None provided'}
+      Company Type/Industry: ${data.companyType || 'Unknown'}
+      Products: ${data.productName || 'None found'}
+      
+      Please provide:
+      1. A more accurate company type/industry classification
+      2. A categorization of the products found
+      3. If the company appears to be focused on specific markets or demographics
+      
+      Format your response as JSON with keys: refinedCompanyType, productCategories, targetMarket
+    `;
+    
+    // Call Azure OpenAI API
+    const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=2023-05-15`;
+    
+    const requestBody = {
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI assistant that specializes in analyzing company and product information to provide structured business intelligence data."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: config.API.AZURE.OPENAI.TEMPERATURE,
+      max_tokens: config.API.AZURE.OPENAI.MAX_TOKENS
+    };
+    
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'api-key': apiKey
+      },
+      payload: JSON.stringify(requestBody),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(apiUrl, options);
+    const responseData = JSON.parse(response.getContentText());
+    
+    if (responseData.error) {
+      throw new Error(responseData.error.message);
+    }
+    
+    if (responseData.choices && responseData.choices.length > 0) {
+      try {
+        const aiResponse = responseData.choices[0].message.content;
+        
+        // Extract JSON from response text
+        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const enrichedData = JSON.parse(jsonMatch[0]);
+          
+          // Create result object with enriched data
+          const result = {};
+          
+          if (enrichedData.refinedCompanyType && 
+             (!data.companyType || data.companyType === "Other" || data.companyType === "Technology")) {
+            result.companyType = enrichedData.refinedCompanyType;
+          }
+          
+          if (enrichedData.productCategories && 
+             (!data.productCategory || data.productCategory === "Other")) {
+            result.productCategory = 
+              Array.isArray(enrichedData.productCategories) 
+                ? enrichedData.productCategories[0] 
+                : enrichedData.productCategories;
+          }
+          
+          if (enrichedData.targetMarket && !data.targetMarket) {
+            result.targetMarket = enrichedData.targetMarket;
+          }
+          
+          return result;
+        }
+      } catch (error) {
+        console.error(`Error parsing AI response: ${error.message}`);
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error enriching data with AI: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Query Google Knowledge Graph API
+ * @param {string} query - The query (company name)
+ * @param {Object} config - Configuration options
+ * @return {Object} Knowledge Graph data
+ */
+function queryKnowledgeGraph(query, config) {
+  try {
+    // Skip if no API key
+    if (!config.API.KNOWLEDGE_GRAPH.KEY) {
+      return null;
+    }
+    
+    const apiKey = config.API.KNOWLEDGE_GRAPH.KEY;
+    const encodedQuery = encodeURIComponent(query);
+    const apiUrl = `https://kgsearch.googleapis.com/v1/entities:search?query=${encodedQuery}&key=${apiKey}&limit=1&types=Organization&types=Corporation`;
+    
+    const options = {
+      method: 'get',
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(apiUrl, options);
+    const responseData = JSON.parse(response.getContentText());
+    
+    if (responseData.itemListElement && responseData.itemListElement.length > 0) {
+      const item = responseData.itemListElement[0].result;
+      
+      return {
+        companyType: item.description || "",
+        companyDescription: item.detailedDescription ? item.detailedDescription.articleBody : ""
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error querying Knowledge Graph: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Update stats dashboard with extraction results
+ * @param {string} url - URL that was processed
+ * @param {Object} data - Extracted data
+ */
+function updateStatsForExtraction(url, data) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const statsSheet = ss.getSheetByName("Data Center");
+    
+    if (!statsSheet) {
+      console.error("Data Center sheet not found");
+      return;
+    }
+    
+    // Update Main Task Report stats
+    const mainStatsRow = statsSheet.getRange(5, 1, 1, 14).getValues()[0];
+    
+    // URL (use the first one if not present)
+    if (!mainStatsRow[0]) {
+      statsSheet.getRange(5, 1).setValue(url);
+    }
+    
+    // Processed count
+    statsSheet.getRange(5, 2).setValue(mainStatsRow[1] + 1);
+    
+    // Remaining (no change in single extraction)
+    
+    // Success count
+    statsSheet.getRange(5, 4).setValue(mainStatsRow[3] + 1);
+    
+    // Company Name Found
+    if (data.companyName) {
+      statsSheet.getRange(5, 6).setValue(mainStatsRow[5] + 1);
+    }
+    
+    // Emails Found
+    if (data.emails && data.emails.length > 0) {
+      statsSheet.getRange(5, 7).setValue(mainStatsRow[6] + 1);
+    }
+    
+    // Phones Found
+    if (data.phones && data.phones.length > 0) {
+      statsSheet.getRange(5, 8).setValue(mainStatsRow[7] + 1);
+    }
+    
+    // Addresses Found
+    if (data.addresses && data.addresses.length > 0) {
+      statsSheet.getRange(5, 9).setValue(mainStatsRow[8] + 1);
+    }
+    
+    // Company logo URL Found
+    if (data.logo) {
+      statsSheet.getRange(5, 10).setValue(mainStatsRow[9] + 1);
+    }
+    
+    // Categories Found
+    if (data.productCategory) {
+      statsSheet.getRange(5, 11).setValue(mainStatsRow[10] + 1);
+    }
+    
+    // Product Names Found
+    if (data.productName) {
+      statsSheet.getRange(5, 12).setValue(mainStatsRow[11] + 1);
+    }
+    
+    // Product Image URLs Found
+    if (data.images && data.images.length > 0) {
+      statsSheet.getRange(5, 13).setValue(mainStatsRow[12] + 1);
+    }
+    
+    // Product Type Found
+    if (data.productCategory) {
+      statsSheet.getRange(5, 14).setValue(mainStatsRow[13] + 1);
+    }
+    
+    // Update API Report
+    const apiStatsRow = statsSheet.getRange(9, 1, 1, 10).getValues()[0];
+    
+    // URL (use the first one if not present)
+    if (!apiStatsRow[0]) {
+      statsSheet.getRange(9, 1).setValue(url);
+    }
+    
+    // Processed count
+    statsSheet.getRange(9, 2).setValue(apiStatsRow[1] + 1);
+    
+    // Success count
+    statsSheet.getRange(9, 4).setValue(apiStatsRow[3] + 1);
+    
+    // Azure OpenAI Success/Fail
+    statsSheet.getRange(9, 6).setValue(globalStats.apiCalls.azure.success);
+    statsSheet.getRange(9, 7).setValue(globalStats.apiCalls.azure.fail);
+    
+    // Knowledge Graph Success/Fail
+    statsSheet.getRange(9, 8).setValue(globalStats.apiCalls.knowledgeGraph.success);
+    statsSheet.getRange(9, 9).setValue(globalStats.apiCalls.knowledgeGraph.fail);
+    
+  } catch (error) {
+    console.error(`Error updating stats: ${error.message}`);
+  }
+}
+
+/**
+ * Get recent extractions for the web app
+ * @param {number} limit - Maximum number of results to return
+ * @return {Array} Recent extractions
+ */
+function getRecentExtractions(limit = 10) {
+  try {
+    // Get the active spreadsheet and Data sheet
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const dataSheet = ss.getSheetByName("Data");
+    
+    if (!dataSheet) {
+      return [];
+    }
+    
+    // Get all data
+    const dataRange = dataSheet.getDataRange();
+    const dataValues = dataRange.getValues();
+    
+    if (dataValues.length <= 1) {
+      // Only header row exists
+      return [];
+    }
+    
+    // Get headers
+    const headers = dataValues[0];
+    
+    // Convert data to objects with header keys
+    const dataObjects = [];
+    
+    for (let i = 1; i < dataValues.length; i++) {
+      const rowData = {};
+      
+      for (let j = 0; j < headers.length; j++) {
+        rowData[headers[j]] = dataValues[i][j];
+      }
+      
+      // Add row index for reference
+      rowData._rowIndex = i + 1;
+      
+      dataObjects.push(rowData);
+    }
+    
+    // Sort by extraction date (descending) if available
+    dataObjects.sort((a, b) => {
+      // Use the dedicated Extraction Date column if available
+      if (a['Extraction Date'] && b['Extraction Date']) {
+        return new Date(b['Extraction Date']) - new Date(a['Extraction Date']);
+      }
+      // Otherwise use row order
+      return b._rowIndex - a._rowIndex;
+    });
+    
+    // Limit results
+    return dataObjects.slice(0, limit);
+    
+  } catch (error) {
+    console.error(`Error getting recent extractions: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Save API keys to the script properties
+ * @param {Object} keys - API keys object
+ * @return {Object} Status result
+ */
+function saveApiKeys(keys) {
+  try {
+    // Update configuration
+    if (keys.azureOpenaiKey) {
+      CONFIG.API.AZURE.OPENAI.KEY = keys.azureOpenaiKey;
+    }
+    
+    if (keys.azureOpenaiEndpoint) {
+      CONFIG.API.AZURE.OPENAI.ENDPOINT = keys.azureOpenaiEndpoint;
+    }
+    
+    if (keys.azureOpenaiDeployment) {
+      CONFIG.API.AZURE.OPENAI.DEPLOYMENT = keys.azureOpenaiDeployment;
+    }
+    
+    if (keys.knowledgeGraphApiKey) {
+      CONFIG.API.KNOWLEDGE_GRAPH.KEY = keys.knowledgeGraphApiKey;
+    }
+    
+    // Save to Properties service for persistence
+    const scriptProperties = PropertiesService.getScriptProperties();
+    
+    scriptProperties.setProperties({
+      'AZURE_OPENAI_KEY': CONFIG.API.AZURE.OPENAI.KEY,
+      'AZURE_OPENAI_ENDPOINT': CONFIG.API.AZURE.OPENAI.ENDPOINT,
+      'AZURE_OPENAI_DEPLOYMENT': CONFIG.API.AZURE.OPENAI.DEPLOYMENT,
+      'KNOWLEDGE_GRAPH_API_KEY': CONFIG.API.KNOWLEDGE_GRAPH.KEY
+    });
+    
+    return {
+      success: true,
+      message: "API keys saved successfully"
+    };
+  } catch (error) {
+    console.error(`Error saving API keys: ${error.message}`);
+    return {
+      success: false,
+      message: error.message
+    };
+  }
+}
+
+/**
+ * Load API keys from script properties
+ * @return {Object} API keys
+ */
+function loadApiKeys() {
+  try {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const azureKey = scriptProperties.getProperty('AZURE_OPENAI_KEY') || "";
+    const azureEndpoint = scriptProperties.getProperty('AZURE_OPENAI_ENDPOINT') || "https://fetcher.openai.azure.com/";
+    const azureDeployment = scriptProperties.getProperty('AZURE_OPENAI_DEPLOYMENT') || "gpt-4";
+    const kgKey = scriptProperties.getProperty('KNOWLEDGE_GRAPH_API_KEY') || "";
+    
+    // Update configuration
+    CONFIG.API.AZURE.OPENAI.KEY = azureKey;
+    CONFIG.API.AZURE.OPENAI.ENDPOINT = azureEndpoint;
+    CONFIG.API.AZURE.OPENAI.DEPLOYMENT = azureDeployment;
+    CONFIG.API.KNOWLEDGE_GRAPH.KEY = kgKey;
+    
+    return {
+      azureOpenaiKey: azureKey,
+      azureOpenaiEndpoint: azureEndpoint,
+      azureOpenaiDeployment: azureDeployment,
+      knowledgeGraphApiKey: kgKey
+    };
+  } catch (error) {
+    console.error(`Error loading API keys: ${error.message}`);
+    return {
+      azureOpenaiKey: "",
+      azureOpenaiEndpoint: "https://fetcher.openai.azure.com/",
+      azureOpenaiDeployment: "gpt-4",
+      knowledgeGraphApiKey: ""
+    };
+  }
+}
+
+/**
+ * Add menu item to run the extraction
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu("Web Stryker R7")
+    .addItem("Extract from URL", "showExtractDialog")
+    .addItem("Process All Pending URLs", "runBatchExtraction")
+    .addSeparator()
+    .addItem("Open Web App", "openWebApp")
+    .addSeparator()
+    .addItem("Configure API Keys", "showApiKeysDialog")
+    .addToUi();
+  
+  // Load API keys from script properties
+  loadApiKeys();
+}
+
+/**
+ * Run batch extraction for all pending URLs
+ */
+function runBatchExtraction() {
+  const result = processAllPendingUrls();
+  
+  const ui = SpreadsheetApp.getUi();
+  if (result.success) {
+    ui.alert(
+      "Batch Extraction Completed", 
+      `Processed ${result.processed} URLs\nSuccessful: ${result.successful}\nFailed: ${result.failed}`, 
+      ui.ButtonSet.OK
+    );
+  } else {
+    ui.alert(
+      "Batch Extraction Failed", 
+      result.error || "An unknown error occurred", 
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Show dialog to extract from a URL
+ */
+function showExtractDialog() {
+  const html = HtmlService.createHtmlOutput(`
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      label { display: block; margin-top: 15px; font-weight: bold; }
+      input { width: 100%; padding: 8px; margin-top: 5px; }
+      .button-container { margin-top: 20px; text-align: right; }
+      button { padding: 8px 15px; background-color: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; }
+      button:hover { background-color: #3367d6; }
+      .status { margin-top: 20px; display: none; }
+      .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 2s linear infinite; display: inline-block; margin-right: 10px; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <h2>Extract Data from URL</h2>
+    <form id="extract-form">
+      <label for="url">Website URL:</label>
+      <input type="text" id="url" name="url" placeholder="https://example.com" required>
+      
+      <div class="button-container">
+        <button type="submit">Extract</button>
+      </div>
+    </form>
+    
+    <div id="status" class="status">
+      <div class="spinner"></div>
+      <span id="status-message">Extracting data...</span>
+    </div>
+    
+    <script>
+      document.getElementById('extract-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show status
+        document.getElementById('status').style.display = 'block';
+        
+        const url = document.getElementById('url').value;
+        const extractionId = 'dialog-' + Date.now().toString();
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              document.getElementById('status-message').textContent = 'Extraction completed successfully!';
+              setTimeout(function() {
+                google.script.host.close();
+              }, 2000);
+            } else {
+              document.getElementById('status-message').textContent = 'Error: ' + result.error;
+            }
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('status-message').textContent = 'Error: ' + error.message;
+          })
+          .processUrlFromWebApp(url, extractionId);
+      });
+    </script>
+  `)
+    .setWidth(400)
+    .setHeight(250)
+    .setTitle("Extract from URL");
+  
+  SpreadsheetApp.getUi().showModalDialog(html, "Extract from URL");
+}
+
+/**
+ * Open the web app in a dialog
+ */
+function openWebApp() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Get the deployment web app URL
+  const scriptId = ScriptApp.getScriptId();
+  const webAppUrl = `https://script.google.com/macros/s/${scriptId}/exec`;
+  
+  const html = HtmlService.createHtmlOutput(`
+    <script>
+      window.open("${webAppUrl}", "_blank");
+      setTimeout(function() {
+        google.script.host.close();
+      }, 100);
+    </script>
+  `)
+    .setWidth(1)
+    .setHeight(1);
+  
+  ui.showModalDialog(html, "Opening Web App...");
+}
+
+/**
+ * Show dialog to configure API keys
+ */
+function showApiKeysDialog() {
+  // Load current keys
+  const keys = loadApiKeys();
+  
+  const html = HtmlService.createHtmlOutput(`
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      label { display: block; margin-top: 15px; font-weight: bold; }
+      input { width: 100%; padding: 8px; margin-top: 5px; }
+      .button-container { margin-top: 20px; text-align: right; }
+      button { padding: 8px 15px; background-color: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; }
+      button:hover { background-color: #3367d6; }
+      .section-title { margin-top: 25px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    </style>
+    <h2>API Keys Configuration</h2>
+    
+    <div class="section-title">
+      <h3>Azure OpenAI Configuration</h3>
+    </div>
+    <form id="api-keys-form">
+      <label for="azure-key">API Key:</label>
+      <input type="password" id="azure-key" name="azure-key" placeholder="Enter your Azure OpenAI API Key" value="${keys.azureOpenaiKey || ''}">
+      
+      <label for="azure-endpoint">Endpoint URL:</label>
+      <input type="text" id="azure-endpoint" name="azure-endpoint" placeholder="https://your-resource.openai.azure.com/" value="${keys.azureOpenaiEndpoint || 'https://fetcher.openai.azure.com/'}">
+      
+      <label for="azure-deployment">Deployment Name:</label>
+      <input type="text" id="azure-deployment" name="azure-deployment" placeholder="gpt-4" value="${keys.azureOpenaiDeployment || 'gpt-4'}">
+      
+      <div class="section-title">
+        <h3>Google Knowledge Graph API</h3>
+      </div>
+      
+      <label for="kg-key">API Key:</label>
+      <input type="text" id="kg-key" name="kg-key" placeholder="Enter your Google Knowledge Graph API Key" value="${keys.knowledgeGraphApiKey || ''}">
+      
+      <div class="button-container">
+        <button type="submit">Save Configuration</button>
+      </div>
+    </form>
+    
+    <script>
+      document.getElementById('api-keys-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const azureOpenaiKey = document.getElementById('azure-key').value;
+        const azureOpenaiEndpoint = document.getElementById('azure-endpoint').value;
+        const azureOpenaiDeployment = document.getElementById('azure-deployment').value;
+        const knowledgeGraphApiKey = document.getElementById('kg-key').value;
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              alert('Configuration saved successfully!');
+              google.script.host.close();
+            } else {
+              alert('Error: ' + result.message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            alert('Error: ' + error.message);
+          })
+          .saveApiKeys({
+            azureOpenaiKey: azureOpenaiKey,
+            azureOpenaiEndpoint: azureOpenaiEndpoint,
+            azureOpenaiDeployment: azureOpenaiDeployment,
+            knowledgeGraphApiKey: knowledgeGraphApiKey
+          });
+      });
+    </script>
+  `)
+    .setWidth(500)
+    .setHeight(550)
+    .setTitle("API Keys Configuration");
+  
+  SpreadsheetApp.getUi().showModalDialog(html, "Configure API Keys");
+}
+/**
+ * Determine product category from product name and description
+ * @param {string} name - Product name
+ * @param {string} description - Product description
+ * @returns {string} Product category
+ */
+function determineProductCategory(name, description) {
+  const textToAnalyze = (name + " " + (description || "")).toLowerCase();
+  
+  const categoryPatterns = [
+    { pattern: /\b(?:tofu|vegan|vegetarian|plant-based|organic|food)\b/i, category: "Food" },
+    { pattern: /\b(?:electronics|device|gadget|computer|laptop|phone|tablet)\b/i, category: "Electronics" },
+    { pattern: /\b(?:clothing|shirt|pants|dress|jacket|apparel|wear)\b/i, category: "Clothing" },
+    { pattern: /\b(?:furniture|chair|table|desk|sofa|bed)\b/i, category: "Furniture" },
+    { pattern: /\b(?:book|novel|textbook|magazine|publication)\b/i, category: "Books" }
+  ];
+  
+  for (const {pattern, category} of categoryPatterns) {
+    if (pattern.test(textToAnalyze)) {
+      return category;
+    }
+  }
+  
+  return "Other";
+}
+
+/**
+ * Extract structured data (JSON-LD) from HTML content
+ * @param {string} content - HTML content
+ * @return {Object} Structured data object
+ */
+function extractStructuredData(content) {
+  try {
+    const jsonLdMatch = content.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/i);
+    if (jsonLdMatch) {
+      return JSON.parse(jsonLdMatch[1]);
+    }
+    return {};
+  } catch (e) {
+    return {};
+  }
+}
+
+/**
+ * Clean HTML content to plain text
+ * @param {string} html - HTML content
+ * @return {string} Plain text
+ */
+function cleanHtml(html) {
+  // Remove HTML tags
+  let text = html.replace(/<[^>]+>/g, ' ');
+  
+  // Decode HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&apos;/g, "'");
+  
+  // Normalize whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+  
+  return text;
+}
+
+/**
+ * Update stats for an extraction
+ * @param {string} url - The URL that was extracted
+ * @param {Object} data - The extracted data
+ */
+function updateStatsForExtraction(url, data) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const statsSheet = ss.getSheetByName("Data Center");
+    
+    if (!statsSheet) {
+      console.log("Stats sheet not found");
+      return;
+    }
+    
+    // Update main task report
+    updateMainTaskReport(statsSheet, url, data);
+    
+    // Update API call report
+    updateApiCallReport(statsSheet, url);
+    
+    // Update product categories report
+    updateCategoriesReport(statsSheet, data);
+    
+  } catch (error) {
+    console.error(`Error updating stats: ${error.message}`);
+  }
+}
+
+/**
+ * Add menu item to run the extraction
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu("Web Stryker R7")
+    .addItem("Extract from URL", "showExtractDialog")
+    .addItem("Process All Pending URLs", "processAllPendingUrls")
+    .addItem("Open Web App", "openWebApp")
+    .addSeparator()
+    .addItem("Configure API Keys", "showApiKeysDialog")
+    .addItem("View Data Center", "openDataCenter")
+    .addToUi();
+  
+  // Load API keys from script properties
+  loadApiKeys();
+  
+  // Initialize the spreadsheet if needed
+  setupSpreadsheet();
+}
+
+/**
+ * Open the Data Center sheet
+ */
+function openDataCenter() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const statsSheet = ss.getSheetByName("Data Center");
+  
+  if (statsSheet) {
+    statsSheet.activate();
+  } else {
+    setupSpreadsheet();
+    ss.getSheetByName("Data Center").activate();
+  }
+}
