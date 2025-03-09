@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web Stryker R7</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+      body {
+        background-color: #f6f6f6;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .main-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background: linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b);
+        color: white;
+        padding: 30px 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+      .header h1 {
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+      }
+      .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+      .card {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        border: none;
+      }
+      .card-header {
+        background-color: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #eaeaea;
+      }
+      .card-body {
+        padding: 25px;
+      }
+      .btn-primary {
+        background: linear-gradient(to right, #3a1c71, #d76d77);
+        border: none;
+        padding: 10px 20px;
+        font-weight: 600;
+      }
+      .btn-primary:hover {
+        background: linear-gradient(to right, #321b5a, #c25c68);
+      }
+      .form-control {
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+      }
+      .control-btn {
+        margin: 0 5px;
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 8px 20px;
+      }
+      .btn-icon {
+        margin-right: 8px;
+      }
+      .result-card {
+        transition: all 0.3s ease;
+      }
+      .result-card:hover {
+        transform: translateY(-5px);
+      }
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        flex-direction: column;
+        display: none;
+      }
+      .loader {
+        width: 100px;
+        height: 100px;
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #3a1c71;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      .progress-container {
+        width: 80%;
+        max-width: 400px;
+        margin-top: 20px;
+      }
+      .progress {
+        height: 15px;
+        border-radius: 10px;
+      }
+      .progress-bar {
+        background: linear-gradient(to right, #3a1c71, #d76d77);
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .data-field {
+        margin-bottom: 20px;
+      }
+      .field-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #495057;
+      }
+      .field-value {
+        background-color: #f8f9fa;
+        padding: 12px 15px;
+        border-radius: 8px;
+        border: 1px solid #eaeaea;
+        min-height: 45px;
+      }
+      .status-badge {
+        font-size: 14px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+      }
+      .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      .status-progress {
+        background-color: #cce5ff;
+        color: #004085;
+      }
+      .status-completed {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .status-failed {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .nav-tabs .nav-link {
+        font-weight: 600;
+        padding: 12px 25px;
+        border-radius: 8px 8px 0 0;
+      }
+      .nav-tabs .nav-link.active {
+        background-color: white;
+        border-color: #dee2e6 #dee2e6 #fff;
+        color: #3a1c71;
+      }
+      .api-settings-btn {
+        background-color: #f8f9fa;
+        color: #495057;
+        font-weight: 600;
+        border: 1px solid #ddd;
+        padding: 8px 15px;
+        border-radius: 8px;
+      }
+      .api-settings-btn:hover {
+        background-color: #e9ecef;
+      }
+      .results-container {
+        display: none;
+        transition: all 0.3s ease;
+      }
+      .error-message {
+        display: none;
+        border-radius: 8px;
+      }
+      .extraction-steps {
+        margin-top: 30px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+      }
+      .extraction-step {
+        display: flex;
+        margin-bottom: 15px;
+        position: relative;
+      }
+      .extraction-step:not(:last-child):after {
+        content: '';
+        position: absolute;
+        left: 14px;
+        top: 35px;
+        height: calc(100% - 10px);
+        width: 2px;
+        background-color: #dee2e6;
+      }
+      .step-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(to right, #3a1c71, #d76d77);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        font-weight: bold;
+        flex-shrink: 0;
+      }
+      .step-content {
+        flex-grow: 1;
+      }
+      .step-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+      .image-preview {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #eaeaea;
+      }
+      .api-settings-card {
+        display: none;
+      }
+    </style>
+  </head>
+  
+  <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loader"></div>
+      <h4 id="extraction-status">Extracting data...</h4>
+      <div class="progress-container">
+        <div class="progress">
+          <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <p id="progress-text" class="text-center mt-2">Starting extraction...</p>
+      </div>
+    </div>
+    
+    <div class="main-container">
+      <!-- Header -->
+      <div class="header">
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <h1><i class="fas fa-robot"></i> Web Stryker R7</h1>
+            <p>Advanced Company & Product Data Extraction System</p>
+          </div>
+          <div class="col-md-4 text-end">
+            <button id="api-settings-toggle" class="api-settings-btn">
+              <i class="fas fa-cog btn-icon"></i>API Settings
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- API Settings Card -->
+      <div id="api-settings-card" class="card api-settings-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-key btn-icon"></i>API Configuration</h5>
+        </div>
+        <div class="card-body">
+          <form id="api-keys-form">
+            <div class="row">
+              <div class="col-md-6">
+                <h6 class="text-primary mb-3">Azure OpenAI</h6>
+                <div class="mb-3">
+                  <label for="azure-key" class="form-label">API Key:</label>
+                  <input type="password" class="form-control" id="azure-key" placeholder="Enter Azure OpenAI API Key">
+                </div>
+                <div class="mb-3">
+                  <label for="azure-endpoint" class="form-label">Endpoint:</label>
+                  <input type="text" class="form-control" id="azure-endpoint" placeholder="https://your-resource.openai.azure.com/" value="https://fetcher.openai.azure.com/">
+                </div>
+                <div class="mb-3">
+                  <label for="azure-deployment" class="form-label">Deployment Name:</label>
+                  <input type="text" class="form-control" id="azure-deployment" placeholder="Model deployment name" value="gpt-4">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <h6 class="text-primary mb-3">Google Knowledge Graph</h6>
+                <div class="mb-3">
+                  <label for="kg-key" class="form-label">API Key:</label>
+                  <input type="text" class="form-control" id="kg-key" placeholder="Enter Google Knowledge Graph API Key">
+                </div>
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle btn-icon"></i>
+                  Using AI services enhances the quality of extracted data by providing better company classifications and filling in missing information.
+                </div>
+              </div>
+            </div>
+            <div class="text-end">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save btn-icon"></i>Save Configuration
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Main Content -->
+      <div class="row">
+        <div class="col-md-12">
+          <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="extract-tab" data-bs-toggle="tab" data-bs-target="#extract" type="button" role="tab" aria-controls="extract" aria-selected="true">
+                <i class="fas fa-search btn-icon"></i>Extract
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" type="button" role="tab" aria-controls="recent" aria-selected="false">
+                <i class="fas fa-history btn-icon"></i>Recent
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="how-tab" data-bs-toggle="tab" data-bs-target="#how" type="button" role="tab" aria-controls="how" aria-selected="false">
+                <i class="fas fa-info-circle btn-icon"></i>How It Works
+              </button>
+            </li>
+          </ul>
+          
+          <div class="tab-content" id="myTabContent">
+            <!-- Extract Tab -->
+            <div class="tab-pane fade show active" id="extract" role="tabpanel" aria-labelledby="extract-tab">
+              <!-- URL Input Card -->
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="mb-0"><i class="fas fa-globe btn-icon"></i>Enter Website URL</h5>
+                </div>
+                <div class="card-body">
+                  <form id="url-form">
+                    <div class="mb-3">
+                      <label for="url-input" class="form-label">Company Website URL:</label>
+                      <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-link"></i></span>
+                        <input type="url" class="form-control" id="url-input" placeholder="https://company.com" required>
+                        <button class="btn btn-primary" type="submit" id="extract-btn">
+                          <i class="fas fa-search btn-icon"></i>Extract Data
+                        </button>
+                      </div>
+                      <div class="form-text">Enter a complete company website URL including http:// or https://</div>
+                    </div>
+                    
+                    <!-- Control buttons -->
+                    <div class="mt-3">
+                      <button type="button" class="btn btn-warning control-btn" id="pause-btn" disabled>
+                        <i class="fas fa-pause btn-icon"></i>Pause
+                      </button>
+                      <button type="button" class="btn btn-success control-btn" id="resume-btn" disabled>
+                        <i class="fas fa-play btn-icon"></i>Resume
+                      </button>
+                      <button type="button" class="btn btn-danger control-btn" id="stop-btn" disabled>
+                        <i class="fas fa-stop btn-icon"></i>Stop
+                      </button>
+                      <button type="button" class="btn btn-secondary control-btn" id="reset-btn">
+                        <i class="fas fa-redo-alt btn-icon"></i>Reset
+                      </button>
+                    </div>
+                  </form>
+                  
+                  <!-- Error Message -->
+                  <div class="alert alert-danger mt-4 error-message" id="error-message"></div>
+                </div>
+              </div>
+              
+              <!-- Results Section -->
+              <div id="results-container" class="results-container">
+                <!-- Company Information Card -->
+                <div class="card result-card">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-building btn-icon"></i>Company Information</h5>
+                    <span id="extraction-badge" class="status-badge status-completed">Completed</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-id-card btn-icon"></i>Company Name</div>
+                          <div class="field-value" id="company-name"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-tag btn-icon"></i>Company Type</div>
+                          <div class="field-value" id="company-type"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-envelope btn-icon"></i>Email Addresses</div>
+                          <div class="field-value" id="company-emails"></div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-phone btn-icon"></i>Phone Numbers</div>
+                          <div class="field-value" id="company-phones"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-map-marker-alt btn-icon"></i>Address</div>
+                          <div class="field-value" id="company-address"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-calendar-alt btn-icon"></i>Extraction Date</div>
+                          <div class="field-value" id="extraction-date"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="data-field">
+                      <div class="field-label"><i class="fas fa-align-left btn-icon"></i>Company Description</div>
+                      <div class="field-value" id="company-description"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Product Information Card -->
+                <div class="card result-card">
+                  <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-box-open btn-icon"></i>Product Information</h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-shopping-bag btn-icon"></i>Product Name</div>
+                          <div class="field-value" id="product-name"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-link btn-icon"></i>Product URL</div>
+                          <div class="field-value" id="product-url"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-sitemap btn-icon"></i>Product Category</div>
+                          <div class="field-value" id="product-category"></div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-tags btn-icon"></i>Product Subcategory</div>
+                          <div class="field-value" id="product-subcategory"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-weight btn-icon"></i>Quantity/Size</div>
+                          <div class="field-value" id="product-quantity"></div>
+                        </div>
+                        <div class="data-field">
+                          <div class="field-label"><i class="fas fa-dollar-sign btn-icon"></i>Price</div>
+                          <div class="field-value" id="product-price"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="data-field">
+                      <div class="field-label"><i class="fas fa-align-left btn-icon"></i>Product Description</div>
+                      <div class="field-value" id="product-description"></div>
+                    </div>
+                    <div class="data-field">
+                      <div class="field-label"><i class="fas fa-list btn-icon"></i>Specifications</div>
+                      <div class="field-value" id="product-specifications"></div>
+                    </div>
+                    <div class="data-field">
+                      <div class="field-label"><i class="fas fa-images btn-icon"></i>Product Images</div>
+                      <div class="field-value" id="product-images">
+                        <div id="images-container" class="d-flex flex-wrap"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Success Message -->
+                <div class="alert alert-success">
+                  <i class="fas fa-check-circle btn-icon"></i>
+                  <strong>Extraction completed successfully!</strong> All data has been saved to your spreadsheet.
+                </div>
+              </div>
+              
+              <!-- Extraction Steps -->
+              <div class="extraction-steps">
+                <h5 class="mb-4"><i class="fas fa-info-circle text-primary me-2"></i>How the Extraction Works</h5>
+                <div class="extraction-step">
+                  <div class="step-icon">1</div>
+                  <div class="step-content">
+                    <div class="step-title">URL Analysis</div>
+                    <p>System analyzes the website structure to understand its organization.</p>
+                  </div>
+                </div>
+                <div class="extraction-step">
+                  <div class="step-icon">2</div>
+                  <div class="step-content">
+                    <div class="step-title">Company Information Extraction</div>
+                    <p>Extracts company details including name, description, and type.</p>
+                  </div>
+                </div>
+                <div class="extraction-step">
+                  <div class="step-icon">3</div>
+                  <div class="step-content">
+                    <div class="step-title">Contact Information Detection</div>
+                    <p>Scans for email addresses, phone numbers, and physical addresses.</p>
+                  </div>
+                </div>
+                <div class="extraction-step">
+                  <div class="step-icon">4</div>
+                  <div class="step-content">
+                    <div class="step-title">Product Information Extraction</div>
+                    <p>Discovers products, categories, prices, and specifications.</p>
+                  </div>
+                </div>
+                <div class="extraction-step">
+                  <div class="step-icon">5</div>
+                  <div class="step-content">
+                    <div class="step-title">AI-Enhanced Analysis</div>
+                    <p>Uses AI to improve data quality and fill in missing information (if configured).</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Recent Tab -->
+            <div class="tab-pane fade" id="recent" role="tabpanel" aria-labelledby="recent-tab">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="mb-0"><i class="fas fa-history btn-icon"></i>Recent Extractions</h5>
+                </div>
+                <div class="card-body">
+                  <div id="recent-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading recent extraction data...</p>
+                  </div>
+                  
+                  <div id="recent-error" class="alert alert-danger" style="display: none;">
+                    Failed to load recent extractions. Please refresh the page and try again.
+                  </div>
+                  
+                  <div id="no-extractions" class="alert alert-info" style="display: none;">
+                    <i class="fas fa-info-circle btn-icon"></i>
+                    No extractions found. Extract your first company using the Extract tab.
+                  </div>
+                  
+                  <div id="recent-container" class="row"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- How It Works Tab -->
+            <div class="tab-pane fade" id="how" role="tabpanel" aria-labelledby="how-tab">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="mb-0"><i class="fas fa-info-circle btn-icon"></i>How Web Stryker R7 Works</h5>
+                </div>
+                <div class="card-body">
+                  <h5 class="mb-3">Web Stryker R7 Extract Process</h5>
+                  <p>Web Stryker R7 is an advanced extraction system designed to automatically gather company and product information from websites. Here's how it works:</p>
+                  
+                  <div class="extraction-steps">
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-link"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 1: URL Processing</div>
+                        <p>Web Stryker R7 takes a company URL and analyzes the website structure, determining where important information is located.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-building"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 2: Company Information Extraction</div>
+                        <p>The system scans the website to extract company details such as name, description, company type, and logo.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-address-book"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 3: Contact Information Detection</div>
+                        <p>Web Stryker R7 identifies and extracts contact information including email addresses, phone numbers, and physical addresses.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-sitemap"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 4: Product Structure Analysis</div>
+                        <p>The system analyzes navigation, breadcrumbs, and product listings to understand product categories and organization.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-shopping-cart"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 5: Product Discovery and Analysis</div>
+                        <p>Web Stryker R7 discovers product pages, extracts product names, descriptions, specifications, prices, and images.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-robot"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 6: AI-Enhanced Data Enrichment</div>
+                        <p>If configured, AI services are used to improve data quality, fill in missing information, and provide better company classifications.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="extraction-step">
+                      <div class="step-icon"><i class="fas fa-database"></i></div>
+                      <div class="step-content">
+                        <div class="step-title">Step 7: Data Storage</div>
+                        <p>All extracted information is saved to your Google Sheet for easy access and further analysis.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <h5 class="mt-5 mb-3">Tips for Best Results</h5>
+                  <div class="alert alert-info">
+                    <ul class="mb-0">
+                      <li>Use company home pages for most complete information extraction</li>
+                      <li>Ensure the website is publicly accessible (not behind login)</li>
+                      <li>Configure API keys for AI-enhanced extraction quality</li>
+                      <li>Some website structures may be more challenging to extract from than others</li>
+                      <li>Modern, well-structured websites typically produce the best extraction results</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <footer class="mt-5 mb-4 text-center text-muted">
+        <p>&copy; 2025 Web Stryker R7 | Advanced Product & Company Extraction System</p>
+      </footer>
+    </div>
+    
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+      // Global variables to track extraction state
+      let extractionInProgress = false;
+      let extractionPaused = false;
+      let currentExtractionId = null;
+      let progressInterval = null;
+      
+      // Document ready
+      document.addEventListener('DOMContentLoaded', function() {
+        setupEventListeners();
+        loadApiKeys();
+        
+        // Load recent extractions if on that tab
+        if (document.getElementById('recent-tab').classList.contains('active')) {
+          loadRecentExtractions();
+        }
+      });
+      
+      // Setup all event listeners
+      function setupEventListeners() {
+        // URL form submission
+        document.getElementById('url-form').addEventListener('submit', function(e) {
+          e.preventDefault();
+          processUrl();
+        });
+        
+        // API settings toggle
+        document.getElementById('api-settings-toggle').addEventListener('click', function() {
+          const settingsCard = document.getElementById('api-settings-card');
+          if (settingsCard.style.display === 'block') {
+            settingsCard.style.display = 'none';
+          } else {
+            settingsCard.style.display = 'block';
+          }
+        });
+        
+        // API keys form submission
+        document.getElementById('api-keys-form').addEventListener('submit', function(e) {
+          e.preventDefault();
+          saveApiKeys();
+        });
+        
+        // Control buttons
+        document.getElementById('pause-btn').addEventListener('click', pauseExtraction);
+        document.getElementById('resume-btn').addEventListener('click', resumeExtraction);
+        document.getElementById('stop-btn').addEventListener('click', stopExtraction);
+        document.getElementById('reset-btn').addEventListener('click', resetForm);
+        
+        // Tab change event for loading recent extractions
+        document.getElementById('recent-tab').addEventListener('click', function() {
+          loadRecentExtractions();
+        });
+      }
+      
+      // Process URL submission
+      function processUrl() {
+        const urlInput = document.getElementById('url-input');
+        const url = urlInput.value.trim();
+        
+        if (!url) {
+          showError('Please enter a valid URL');
+          return;
+        }
+        
+        // Hide error message and results
+        document.getElementById('error-message').style.display = 'none';
+        document.getElementById('results-container').style.display = 'none';
+        
+        // Show loading overlay
+        document.getElementById('loading-overlay').style.display = 'flex';
+        document.getElementById('extraction-status').textContent = 'Extracting data...';
+        document.getElementById('progress-bar').style.width = '0%';
+        document.getElementById('progress-bar').setAttribute('aria-valuenow', '0');
+        document.getElementById('progress-text').textContent = 'Starting extraction...';
+        
+        // Update button states
+        updateButtonStates(true);
+        
+        // Generate unique extraction ID
+        extractionInProgress = true;
+        extractionPaused = false;
+        currentExtractionId = 'webapp-' + Date.now().toString();
+        
+        // Start progress check interval
+        startProgressChecking();
+        
+        // Call the server-side function
+        google.script.run
+          .withSuccessHandler(handleExtractionSuccess)
+          .withFailureHandler(handleExtractionError)
+          .processUrlFromWebApp(url, currentExtractionId);
+      }
+      
+      // Start checking extraction progress
+      function startProgressChecking() {
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+        
+        progressInterval = setInterval(function() {
+          if (currentExtractionId) {
+            google.script.run
+              .withSuccessHandler(updateProgress)
+              .getExtractionProgress(currentExtractionId);
+          }
+        }, 1000);
+      }
+      
+      // Update progress display
+      function updateProgress(progressData) {
+        if (!progressData.found) {
+          return;
+        }
+        
+        if (progressData.stopped) {
+          clearInterval(progressInterval);
+          document.getElementById('loading-overlay').style.display = 'none';
+          showError('Extraction was stopped');
+          updateButtonStates(false);
+          return;
+        }
+        
+        if (progressData.paused) {
+          document.getElementById('extraction-status').textContent = 'Extraction paused';
+          document.getElementById('progress-text').textContent = 'Waiting to resume...';
+          return;
+        }
+        
+        // Update progress bar
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = progressData.progress + '%';
+        progressBar.setAttribute('aria-valuenow', progressData.progress);
+        
+        // Update progress text
+        document.getElementById('progress-text').textContent = progressData.stage || 'Processing...';
+      }
+      
+      // Handle successful extraction
+      function handleExtractionSuccess(response) {
+        // Stop progress checking
+        clearInterval(progressInterval);
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').style.display = 'none';
+        
+        // Reset extraction state
+        updateButtonStates(false);
+        
+        if (response.success) {
+          displayResults(response.data);
+          
+          // Refresh recent extractions if needed
+          if (document.getElementById('recent-tab').classList.contains('active')) {
+            loadRecentExtractions();
+          }
+        } else {
+          showError(response.error || 'An unknown error occurred during extraction');
+        }
+      }
+      
+      // Handle extraction error
+      function handleExtractionError(error) {
+        // Stop progress checking
+        clearInterval(progressInterval);
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').style.display = 'none';
+        
+        // Reset extraction state
+        updateButtonStates(false);
+        
+        // Show error message
+        showError(error.message || 'An error occurred during extraction');
+      }
+      
+      // Display extraction results
+      function displayResults(data) {
+        // Company Information
+        document.getElementById('company-name').textContent = data.companyName || 'Not found';
+        document.getElementById('company-type').textContent = data.companyType || 'Not specified';
+        document.getElementById('company-description').textContent = data.companyDescription || 'No description available';
+        document.getElementById('company-emails').textContent = data.emails || 'No email addresses found';
+        document.getElementById('company-phones').textContent = data.phones || 'No phone numbers found';
+        document.getElementById('company-address').textContent = data.addresses || 'No address found';
+        
+        // Format extraction date
+        let extractionDate = 'Unknown';
+        try {
+          if (data.extractionDate) {
+            const date = new Date(data.extractionDate);
+            extractionDate = date.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error formatting date:', e);
+        }
+        document.getElementById('extraction-date').textContent = extractionDate;
+        
+        // Product Information
+        document.getElementById('product-name').textContent = data.productName || 'No products found';
+        
+        // Product URL with link if available
+        if (data.productUrl) {
+          document.getElementById('product-url').innerHTML = `<a href="${data.productUrl}" target="_blank">${data.productUrl}</a>`;
+        } else {
+          document.getElementById('product-url').textContent = 'No product URL available';
+        }
+        
+        document.getElementById('product-category').textContent = data.productCategory || 'Not categorized';
+        document.getElementById('product-subcategory').textContent = data.productSubcategory || 'No subcategory';
+        document.getElementById('product-quantity').textContent = data.quantity || 'Not specified';
+        document.getElementById('product-price').textContent = data.price || 'No price information';
+        document.getElementById('product-description').textContent = data.productDescription || 'No product description available';
+        document.getElementById('product-specifications').textContent = data.specifications || 'No specifications available';
+        
+        // Display product images
+        const imagesContainer = document.getElementById('images-container');
+        imagesContainer.innerHTML = '';
+        
+        if (data.images) {
+          const imageUrls = data.images.split(',').filter(url => url.trim());
+          
+          if (imageUrls.length > 0) {
+            for (const url of imageUrls) {
+              const trimmedUrl = url.trim();
+              if (trimmedUrl) {
+                const img = document.createElement('img');
+                img.src = trimmedUrl;
+                img.alt = 'Product image';
+                img.className = 'image-preview';
+                img.onerror = function() { this.style.display = 'none'; };
+                imagesContainer.appendChild(img);
+              }
+            }
+          } else {
+            imagesContainer.textContent = 'No product images found';
+          }
+        } else {
+          imagesContainer.textContent = 'No product images found';
+        }
+        
+        // Show results container
+        document.getElementById('results-container').style.display = 'block';
+      }
+      
+      // Show error message
+      function showError(message) {
+        const errorElement = document.getElementById('error-message');
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+      }
+      
+      // Update control button states
+      function updateButtonStates(isExtracting) {
+        extractionInProgress = isExtracting;
+        
+        document.getElementById('extract-btn').disabled = isExtracting;
+        document.getElementById('pause-btn').disabled = !isExtracting || extractionPaused;
+        document.getElementById('resume-btn').disabled = !isExtracting || !extractionPaused;
+        document.getElementById('stop-btn').disabled = !isExtracting;
+        document.getElementById('reset-btn').disabled = isExtracting;
+      }
+      
+      // Pause extraction
+      function pauseExtraction() {
+        if (extractionInProgress && !extractionPaused && currentExtractionId) {
+          extractionPaused = true;
+          
+          // Update button states
+          updateButtonStates(true);
+          
+          // Call server-side function
+          google.script.run
+            .withSuccessHandler(function(response) {
+              console.log('Extraction paused:', response);
+            })
+            .pauseExtraction(currentExtractionId);
+        }
+      }
+      
+      // Resume extraction
+      function resumeExtraction() {
+        if (extractionInProgress && extractionPaused && currentExtractionId) {
+          extractionPaused = false;
+          
+          // Update button states
+          updateButtonStates(true);
+          
+          // Call server-side function
+          google.script.run
+            .withSuccessHandler(function(response) {
+              console.log('Extraction resumed:', response);
+            })
+            .resumeExtraction(currentExtractionId);
+        }
+      }
+      
+      // Stop extraction
+      function stopExtraction() {
+        if (extractionInProgress && currentExtractionId) {
+          // Call server-side function
+          google.script.run
+            .withSuccessHandler(function(response) {
+              console.log('Extraction stopped:', response);
+              
+              // Reset state
+              extractionInProgress = false;
+              extractionPaused = false;
+              
+              // Update UI
+              clearInterval(progressInterval);
+              document.getElementById('loading-overlay').style.display = 'none';
+              showError('Extraction was stopped by user');
+              updateButtonStates(false);
+            })
+            .stopExtraction(currentExtractionId);
+        }
+      }
+      
+      // Reset form
+      function resetForm() {
+        document.getElementById('url-input').value = '';
+        document.getElementById('error-message').style.display = 'none';
+        document.getElementById('results-container').style.display = 'none';
+        
+        // Reset extraction state
+        extractionInProgress = false;
+        extractionPaused = false;
+        currentExtractionId = null;
+        
+        updateButtonStates(false);
+      }
+      
+      // Load API keys
+      function loadApiKeys() {
+        google.script.run
+          .withSuccessHandler(function(keys) {
+            document.getElementById('azure-key').value = keys.azureOpenaiKey || '';
+            document.getElementById('azure-endpoint').value = keys.azureOpenaiEndpoint || 'https://fetcher.openai.azure.com/';
+            document.getElementById('azure-deployment').value = keys.azureOpenaiDeployment || 'gpt-4';
+            document.getElementById('kg-key').value = keys.knowledgeGraphApiKey || '';
+          })
+          .loadApiKeys();
+      }
+      
+      // Save API keys
+      function saveApiKeys() {
+        const keys = {
+          azureOpenaiKey: document.getElementById('azure-key').value,
+          azureOpenaiEndpoint: document.getElementById('azure-endpoint').value,
+          azureOpenaiDeployment: document.getElementById('azure-deployment').value,
+          knowledgeGraphApiKey: document.getElementById('kg-key').value
+        };
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              alert('API keys saved successfully');
+              document.getElementById('api-settings-card').style.display = 'none';
+            } else {
+              alert('Error saving API keys: ' + result.message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            alert('Error: ' + error.message);
+          })
+          .saveApiKeys(keys);
+      }
+      
+      // Load recent extractions
+      function loadRecentExtractions() {
+        document.getElementById('recent-loading').style.display = 'block';
+        document.getElementById('recent-error').style.display = 'none';
+        document.getElementById('no-extractions').style.display = 'none';
+        document.getElementById('recent-container').innerHTML = '';
+        
+        google.script.run
+          .withSuccessHandler(displayRecentExtractions)
+          .withFailureHandler(function(error) {
+            document.getElementById('recent-loading').style.display = 'none';
+            document.getElementById('recent-error').style.display = 'block';
+            console.error('Error loading recent extractions:', error);
+          })
+          .getRecentExtractions(12);
+      }
+      
+      // Display recent extractions
+      function displayRecentExtractions(extractions) {
+        document.getElementById('recent-loading').style.display = 'none';
+        
+        if (!extractions || extractions.length === 0) {
+          document.getElementById('no-extractions').style.display = 'block';
+          return;
+        }
+        
+        const container = document.getElementById('recent-container');
+        
+        extractions.forEach(function(extraction) {
+          // Format date
+          let extractionDate = 'Unknown';
+          try {
+            if (extraction['Extraction Date']) {
+              const date = new Date(extraction['Extraction Date']);
+              extractionDate = date.toLocaleDateString();
+            }
+          } catch (e) {
+            console.error('Error formatting date:', e);
+          }
+          
+          // Determine status class
+          let statusClass = 'status-pending';
+          if (extraction['Status'] === 'Completed') {
+            statusClass = 'status-completed';
+          } else if (extraction['Status'] === 'Failed') {
+            statusClass = 'status-failed';
+          } else if (extraction['Status'] === 'In Progress') {
+            statusClass = 'status-progress';
+          }
+          
+          // Create card
+          const col = document.createElement('div');
+          col.className = 'col-md-4 mb-4';
+          col.innerHTML = `
+            <div class="card result-card h-100">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 text-truncate" title="${extraction['Company Name'] || 'Unknown Company'}">
+                  <i class="fas fa-building btn-icon"></i>${extraction['Company Name'] || 'Unknown Company'}
+                </h6>
+                <span class="status-badge ${statusClass}">${extraction['Status'] || 'Unknown'}</span>
+              </div>
+              <div class="card-body">
+                <p class="small mb-2 text-truncate" title="${extraction['URL'] || ''}">
+                  <i class="fas fa-link btn-icon"></i>${extraction['URL'] || 'No URL'}
+                </p>
+                <p class="small mb-2">
+                  <i class="fas fa-calendar-alt btn-icon"></i>${extractionDate}
+                </p>
+                <div class="small mb-2">
+                  <i class="fas fa-shopping-bag btn-icon"></i>
+                  <strong>Products:</strong> ${extraction['Product Name'] ? extraction['Product Name'].substring(0, 50) + (extraction['Product Name'].length > 50 ? '...' : '') : 'None found'}
+                </div>
+                <div class="small mb-2">
+                  <i class="fas fa-envelope btn-icon"></i>
+                  <strong>Contacts:</strong> ${extraction['Emails'] ? 'Found' : 'None found'}
+                </div>
+              </div>
+              <div class="card-footer text-center">
+                <button class="btn btn-sm btn-primary" onclick="reExtractUrl('${extraction['URL']}')">
+                  <i class="fas fa-sync-alt btn-icon"></i>Extract Again
+                </button>
+              </div>
+            </div>
+          `;
+          
+          container.appendChild(col);
+        });
+      }
+      
+      // Re-extract URL from recent extractions
+      function reExtractUrl(url) {
+        if (!url) return;
+        
+        // Switch to extract tab
+        document.getElementById('extract-tab').click();
+        
+        // Fill URL input
+        document.getElementById('url-input').value = url;
+        
+        // Start extraction
+        processUrl();
+      }
+    </script>
+  </body>
+</html>
