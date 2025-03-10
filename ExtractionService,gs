@@ -1,0 +1,1799 @@
+/**
+ * ExtractionService - Manages the extraction of company and product data
+ * Implements domain-driven design principles for cleaner architecture
+ */
+class ExtractionService {
+  constructor(config) {
+    this.config = config;
+    this.sheetRepository = new SheetRepository();
+    this.logRepository = new LogRepository();
+  }
+  
+  /**
+   * Process a URL for extraction
+   * @param {string} url - URL to extract data from
+   * @param {string} extractionId - Unique ID for tracking
+   * @return {Object} Extraction results
+   */
+  // Add to ExtractionService.gs - Enhanced extraction capabilities
+async extractData(url, extractionId, extractionState) {
+  // Basic content fetching (existing code)
+  extractionState.updateProgress(15, "Fetching website content");
+  const content = await this.fetchContent(url, extractionId);
+  if (!content) return null;
+  
+  // Create company entity
+  const company = new CompanyEntity();
+  company.url = url;
+  company.extractionDate = new Date().toISOString();
+  
+  // Enhanced metadata extraction
+  extractionState.updateProgress(20, "Extracting metadata");
+  const metadataExtractor = new MetadataExtractor();
+  metadataExtractor.extract(content, url, company);
+  
+  // Language detection
+  extractionState.updateProgress(25, "Detecting language and sentiment");
+  company.language = this.detectLanguage(content);
+  company.sentiment = this.analyzeSentiment(content);
+  company.readabilityScore = this.calculateReadability(content);
+  company.keywords = this.extractKeywords(content);
+  
+  // Standard company extraction (core info)
+  extractionState.updateProgress(30, "Extracting company information");
+  const companyExtractor = new CompanyExtractor();
+  companyExtractor.extract(content, url, company);
+  
+  // Contact extraction
+  extractionState.updateProgress(40, "Extracting contact information");
+  const contactExtractor = new ContactExtractor();
+  contactExtractor.extract(content, url, company);
+  
+  // Page crawling - critical new feature
+  extractionState.updateProgress(50, "Crawling website pages");
+  const pageCrawler = new PageCrawler(this.config);
+  const additionalPages = await pageCrawler.crawl(url, content, extractionId);
+  
+  // Deep product extraction with crawled content
+  extractionState.updateProgress(60, "Extracting detailed product information");
+  const productExtractor = new EnhancedProductExtractor(this.config);
+  await productExtractor.extractWithCrawling(content, additionalPages, url, company, extractionId);
+  
+  // Data enrichment
+  extractionState.updateProgress(80, "Enriching data with AI analysis");
+  if (this.config.API.AZURE.OPENAI.KEY) {
+    const aiEnricher = new AiEnricher(this.config);
+    await aiEnricher.enrichData(company);
+  }
+  
+  return company.toDataObject();
+}
+  
+  /**
+   * Extract company and product data from URL
+   * @param {string} url - URL to extract from
+   * @param {string} extractionId - Unique ID for tracking
+   * @param {ExtractionState} extractionState - State tracking object
+   * @return {Object} Extracted data
+   */
+  /**
+ * Update the ExtractionService class to integrate the new enhanced extractors
+ * 
+ * Find and replace your existing extractData method with this implementation:
+ */
+async extractData(url, extractionId, extractionState) {
+  // Basic content fetching
+  extractionState.updateProgress(15, "Fetching website content");
+  const content = await this.fetchContent(url, extractionId);
+  if (!content) return null;
+  
+  // Create company entity
+  const company = new CompanyEntity();
+  company.url = url;
+  company.extractionDate = new Date().toISOString();
+  
+  // Enhanced metadata extraction
+  extractionState.updateProgress(20, "Extracting metadata");
+  const metadataExtractor = new MetadataExtractor();
+  metadataExtractor.extract(content, url, company);
+  
+  // Page crawling - critical new feature
+  extractionState.updateProgress(25, "Crawling website pages");
+  const pageCrawler = new PageCrawler(this.config);
+  const additionalPages = await pageCrawler.crawl(url, content, extractionId);
+  
+  // Extract company information
+  extractionState.updateProgress(35, "Extracting company information");
+  const companyExtractor = new CompanyExtractor();
+  companyExtractor.extract(content, url, company);
+  
+  // Extract contact information
+  extractionState.updateProgress(45, "Extracting contact information");
+  const contactExtractor = new ContactExtractor();
+  contactExtractor.extract(content, url, company);
+  
+  // Advanced NLP analysis if Google APIs configured
+  if (this.config.API?.GOOGLE?.VERTEX_AI?.KEY) {
+    extractionState.updateProgress(50, "Analyzing text with AI");
+    const cloudApiService = new GoogleCloudApiService(this.config);
+    
+    // Detect language
+    const mainText = company.companyDescription || content;
+    company.language = await cloudApiService.detectLanguage(mainText.substring(0, 1000));
+    
+    // Analyze text for entities, sentiment, etc.
+    const textAnalysis = await cloudApiService.analyzeText(mainText.substring(0, 2000));
+    if (textAnalysis) {
+      // Store the analysis results
+      company.textAnalysis = textAnalysis;
+      
+      // Update company type if available from analysis
+      if (textAnalysis.classifications && textAnalysis.classifications.length > 0) {
+        for (const classification of textAnalysis.classifications) {
+          if (classification.displayName && classification.confidence > 0.7 && !company.companyType) {
+            company.companyType = classification.displayName.split('/')[0];
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  // Deep product extraction with crawled content
+  extractionState.updateProgress(60, "Extracting detailed product information");
+  const enhancedProductExtractor = new EnhancedProductExtractor(this.config);
+  await enhancedProductExtractor.extractWithCrawling(content, additionalPages, url, company, extractionId);
+  
+  // Data enrichment with AI
+  extractionState.updateProgress(80, "Enriching data with AI analysis");
+  if (this.config.API.AZURE.OPENAI.KEY) {
+    const aiEnricher = new AiEnricher(this.config);
+    await aiEnricher.enrichData(company);
+  }
+  
+  // Knowledge Graph enrichment if configured
+  if (this.config.API.KNOWLEDGE_GRAPH.KEY && company.companyName) {
+    extractionState.updateProgress(90, "Verifying with Knowledge Graph");
+    await this.queryKnowledgeGraph(company);
+  }
+  
+  extractionState.updateProgress(95, "Completing extraction");
+  return company.toDataObject();
+}
+
+/**
+ * Add also these supporting cloud API related methods to your ExtractionService class
+ */
+
+/**
+ * Calculate readability score
+ * @param {string} text - Text to analyze
+ * @return {number} Readability score (0-100)
+ */
+calculateReadability(text) {
+  if (!text) return null;
+  
+  try {
+    // Simple implementation of Flesch Reading Ease score
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const syllables = this.countSyllables(text);
+    
+    if (sentences.length === 0 || words.length === 0) return null;
+    
+    const wordsPerSentence = words.length / sentences.length;
+    const syllablesPerWord = syllables / words.length;
+    
+    // Flesch Reading Ease = 206.835 - (1.015 × words_per_sentence) - (84.6 × syllables_per_word)
+    const score = 206.835 - (1.015 * wordsPerSentence) - (84.6 * syllablesPerWord);
+    
+    // Clamp score to 0-100 range
+    return Math.min(100, Math.max(0, score));
+  } catch (error) {
+    console.error(`Error calculating readability: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Count syllables in text
+ * @param {string} text - Text to analyze
+ * @return {number} Syllable count
+ */
+countSyllables(text) {
+  if (!text) return 0;
+  
+  // Simple syllable counting algorithm
+  const words = text.toLowerCase().split(/\s+/);
+  let count = 0;
+  
+  for (const word of words) {
+    if (word.length <= 3) {
+      count++;
+      continue;
+    }
+    
+    // Count vowel groups
+    const vowelGroups = word.replace(/[^aeiouy]+/g, ' ').trim().split(' ');
+    let wordCount = vowelGroups.length;
+    
+    // Adjust for silent e at end
+    if (word.endsWith('e') && wordCount > 1) {
+      wordCount--;
+    }
+    
+    // Ensure at least one syllable per word
+    count += Math.max(1, wordCount);
+  }
+  
+  return count;
+}
+
+/**
+ * Analyze sentiment of text
+ * @param {string} text - Text to analyze
+ * @return {Object} Sentiment analysis
+ */
+analyzeSentiment(text) {
+  if (!text) return null;
+  
+  try {
+    // Simple sentiment analysis using keyword matching
+    const positiveWords = [
+      'good', 'great', 'excellent', 'amazing', 'wonderful', 'best', 'love',
+      'happy', 'positive', 'success', 'beautiful', 'perfect', 'recommend'
+    ];
+    
+    const negativeWords = [
+      'bad', 'poor', 'terrible', 'awful', 'worst', 'hate', 'sad', 'negative',
+      'failure', 'ugly', 'horrible', 'disappointing', 'avoid'
+    ];
+    
+    const words = text.toLowerCase().split(/\W+/);
+    let positiveCount = 0;
+    let negativeCount = 0;
+    
+    for (const word of words) {
+      if (positiveWords.includes(word)) positiveCount++;
+      if (negativeWords.includes(word)) negativeCount++;
+    }
+    
+    let sentiment;
+    const total = positiveCount + negativeCount;
+    
+    if (total === 0) {
+      sentiment = 'neutral';
+    } else if (positiveCount > negativeCount) {
+      sentiment = 'positive';
+    } else if (negativeCount > positiveCount) {
+      sentiment = 'negative';
+    } else {
+      sentiment = 'mixed';
+    }
+    
+    // Calculate score from -1 (negative) to 1 (positive)
+    let score = 0;
+    if (total > 0) {
+      score = (positiveCount - negativeCount) / total;
+    }
+    
+    return {
+      sentiment,
+      score,
+      details: {
+        positiveCount,
+        negativeCount
+      }
+    };
+  } catch (error) {
+    console.error(`Error analyzing sentiment: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Extract keywords from text
+ * @param {string} text - Text to analyze
+ * @return {Array} Keywords with scores
+ */
+extractKeywords(text) {
+  if (!text) return [];
+  
+  try {
+    // Simple keyword extraction algorithm
+    // Remove common stopwords
+    const stopwords = [
+      'a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be', 'been',
+      'have', 'has', 'had', 'do', 'does', 'did', 'not', 'in', 'on', 'at', 'to', 'for',
+      'with', 'by', 'about', 'as', 'of', 'from', 'this', 'that', 'these', 'those'
+    ];
+    
+    // Get all words
+    const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+    
+    // Count word frequency
+    const wordFreq = {};
+    for (const word of words) {
+      if (!stopwords.includes(word)) {
+        wordFreq[word] = (wordFreq[word] || 0) + 1;
+      }
+    }
+    
+    // Convert to array and sort
+    const keywords = Object.entries(wordFreq)
+      .map(([word, count]) => ({
+        keyword: word,
+        score: count / words.length
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+    
+    return keywords;
+  } catch (error) {
+    console.error(`Error extracting keywords: ${error.message}`);
+    return [];
+  }
+}
+  
+  /**
+   * Fetch content from URL with retry logic
+   * @param {string} url - URL to fetch
+   * @param {string} extractionId - Extraction ID for control
+   * @return {string} HTML content or null on failure
+   */
+  async fetchContent(url, extractionId) {
+    const options = {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: {
+        "User-Agent": this.config.USER_AGENT
+      }
+    };
+    
+    for (let attempt = 0; attempt < this.config.MAX_RETRIES; attempt++) {
+      // Check if extraction is stopped
+      if (ExtractionState.isStopped(extractionId)) {
+        console.log("Extraction stopped during fetch");
+        return null;
+      }
+      
+      // Wait if paused
+      ExtractionState.waitIfPaused(extractionId);
+      
+      try {
+        const response = UrlFetchApp.fetch(url, options);
+        return response.getContentText();
+      } catch (error) {
+        console.error(`Fetch attempt ${attempt + 1} failed: ${error.message}`);
+        Utilities.sleep(Math.pow(2, attempt) * 1000 + Math.random() * 1000);
+      }
+    }
+    
+    console.error(`All retry attempts failed for ${url}`);
+    return null;
+  }
+  
+  /**
+   * Validate URL format
+   * @param {string} url - URL to validate
+   * @return {boolean} Is valid
+   */
+  isValidUrl(url) {
+    try {
+      const regex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+      return regex.test(url);
+    } catch (e) {
+      return false;
+    }
+  }
+}
+
+/**
+ * CompanyEntity - Domain model for company data
+ */
+class CompanyEntity {
+  constructor() {
+    this.url = "";
+    this.companyName = "";
+    this.companyDescription = "";
+    this.companyType = "";
+    this.emails = [];
+    this.phones = [];
+    this.addresses = [];
+    this.extractionDate = null;
+    this.products = [];
+    this.logo = "";
+  }
+  
+  /**
+   * Convert to data object for storage
+   */
+  toDataObject() {
+    // Get the primary product if available
+    const primaryProduct = this.products.length > 0 ? this.products[0] : null;
+    
+    return {
+      url: this.url,
+      companyName: this.companyName,
+      companyDescription: this.companyDescription,
+      companyType: this.companyType,
+      emails: this.emails.join(", "),
+      phones: this.phones.join(", "),
+      addresses: this.addresses.join("; "),
+      extractionDate: this.extractionDate,
+      
+      // Product information (from primary product or empty)
+      productName: primaryProduct ? primaryProduct.productName : "",
+      productUrl: primaryProduct ? primaryProduct.productUrl : "",
+      productCategory: primaryProduct ? primaryProduct.mainCategory : "",
+      productSubcategory: primaryProduct ? primaryProduct.subCategory : "",
+      productFamily: primaryProduct ? primaryProduct.productFamily : "",
+      quantity: primaryProduct ? primaryProduct.quantity : "",
+      price: primaryProduct ? primaryProduct.price : "",
+      productDescription: primaryProduct ? primaryProduct.description : "",
+      specifications: primaryProduct ? primaryProduct.specifications : "",
+      images: primaryProduct ? primaryProduct.images.join(", ") : ""
+    };
+  }
+}
+
+/**
+ * ProductEntity - Domain model for product data
+ */
+class ProductEntity {
+  constructor() {
+    this.productName = "";
+    this.productUrl = "";
+    this.mainCategory = "";
+    this.subCategory = "";
+    this.productFamily = "";
+    this.price = "";
+    this.quantity = "";
+    this.description = "";
+    this.specifications = "";
+    this.images = [];
+  }
+}
+
+/**
+ * ExtractionState - Manages extraction state and progress
+ */
+class ExtractionState {
+  constructor(extractionId, url) {
+    this.extractionId = extractionId;
+    
+    // Initialize in global tracking object
+    extractionStates[extractionId] = {
+      paused: false,
+      stopped: false,
+      url: url,
+      startTime: new Date().toISOString(),
+      progress: 0,
+      stage: "Initializing"
+    };
+  }
+  
+  /**
+   * Update progress information
+   * @param {number} progress - Progress value (0-100)
+   * @param {string} stage - Current stage description
+   */
+  updateProgress(progress, stage) {
+    if (!this.extractionId || !extractionStates[this.extractionId]) return;
+    
+    extractionStates[this.extractionId].progress = progress;
+    extractionStates[this.extractionId].stage = stage;
+  }
+  
+  /**
+   * Check if extraction is stopped
+   * @param {string} extractionId - Extraction ID
+   * @return {boolean} Is stopped
+   */
+  static isStopped(extractionId) {
+    return extractionId && 
+           extractionStates[extractionId] && 
+           extractionStates[extractionId].stopped;
+  }
+  
+  /**
+   * Wait if extraction is paused
+   * @param {string} extractionId - Extraction ID
+   */
+  static waitIfPaused(extractionId) {
+    if (!extractionId || !extractionStates[extractionId]) return;
+    
+    // Check if paused in a loop with short intervals
+    while (extractionStates[extractionId].paused && 
+           !extractionStates[extractionId].stopped) {
+      Utilities.sleep(500); // Check every 500ms
+    }
+  }
+  
+  /**
+   * Clean up extraction state
+   */
+  cleanup() {
+    if (this.extractionId) {
+      delete extractionStates[this.extractionId];
+    }
+  }
+}
+
+/**
+ * SheetRepository - Handles data storage in Google Sheets
+ */
+class SheetRepository {
+  constructor() {
+    this.spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    this.setupSheets();
+  }
+  
+  /**
+   * Ensure all required sheets exist
+   */
+  setupSheets() {
+    // Setup Data sheet if it doesn't exist
+    if (!this.spreadsheet.getSheetByName("Data")) {
+      this.createDataSheet();
+    }
+    
+    // Setup other sheets (Extraction Log, Error Log, etc.)
+    if (!this.spreadsheet.getSheetByName("Extraction Log")) {
+      this.createExtractionLogSheet();
+    }
+    
+    if (!this.spreadsheet.getSheetByName("Error Log")) {
+      this.createErrorLogSheet();
+    }
+  }
+  
+  /**
+   * Create Data sheet with headers
+   */
+  createDataSheet() {
+    const dataSheet = this.spreadsheet.insertSheet("Data");
+    
+    // Setup data headers
+    const headers = [
+      "URL", "Status", "Company Name", "Addresses", "Emails", "Phones", 
+      "Company Description", "Company Type", "Product Name", "Product URL", 
+      "Product Category", "Product Subcategory", "Product Family", 
+      "Quantity", "Price", "Product Description", "Specifications", 
+      "Images", "Extraction Date"
+    ];
+    
+    const headerRange = dataSheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight("bold");
+    
+    // Format data sheet
+    dataSheet.setFrozenRows(1);
+    dataSheet.getRange(1, 1, 1, headers.length).createFilter();
+  }
+  
+  /**
+   * Create Extraction Log sheet
+   */
+  createExtractionLogSheet() {
+    // Implementation details...
+  }
+  
+  /**
+   * Create Error Log sheet
+   */
+  createErrorLogSheet() {
+    // Implementation details...
+  }
+  
+  /**
+   * Initialize URL entry with "Pending" status
+   * @param {string} url - URL to initialize
+   */
+  initializeUrl(url) {
+    try {
+      const dataSheet = this.spreadsheet.getSheetByName("Data");
+      
+      // Check if URL already exists
+      const dataRange = dataSheet.getDataRange();
+      const dataValues = dataRange.getValues();
+      
+      for (let i = 1; i < dataValues.length; i++) {
+        if (dataValues[i][0] === url) {
+          // URL already exists, update status to "In Progress"
+          dataSheet.getRange(i + 1, 2).setValue("In Progress");
+          return;
+        }
+      }
+      
+      // URL doesn't exist, add new row
+      dataSheet.appendRow([url, "In Progress"]);
+    } catch (error) {
+      console.error(`Error initializing URL: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Update extraction status for a URL
+   * @param {string} url - URL to update
+   * @param {string} status - New status
+   */
+  updateStatus(url, status) {
+    try {
+      const dataSheet = this.spreadsheet.getSheetByName("Data");
+      const dataRange = dataSheet.getDataRange();
+      const dataValues = dataRange.getValues();
+      
+      for (let i = 1; i < dataValues.length; i++) {
+        if (dataValues[i][0] === url) {
+          dataSheet.getRange(i + 1, 2).setValue(status);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error(`Error updating status: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Store extracted data in the Data sheet
+   * @param {Object} data - Extracted data
+   */
+  storeData(data) {
+    try {
+      const dataSheet = this.spreadsheet.getSheetByName("Data");
+      
+      // Find if URL already exists
+      const dataRange = dataSheet.getDataRange();
+      const dataValues = dataRange.getValues();
+      let rowIndex = -1;
+      
+      for (let i = 1; i < dataValues.length; i++) {
+        if (dataValues[i][0] === data.url) {
+          rowIndex = i + 1; // +1 because array is 0-indexed, but sheets are 1-indexed
+          break;
+        }
+      }
+      
+      // Prepare row data with the complete schema
+      const rowData = [
+        data.url || "",                    // URL
+        "Completed",                       // Status
+        data.companyName || "",            // Company Name
+        data.addresses || "",              // Addresses
+        data.emails || "",                 // Emails
+        data.phones || "",                 // Phones 
+        data.companyDescription || "",     // Company Description
+        data.companyType || "",            // Company Type
+        data.productName || "",            // Product Name
+        data.productUrl || "",             // Product URL
+        data.productCategory || "",        // Product Category
+        data.productSubcategory || "",     // Product Subcategory
+        data.productFamily || "",          // Product Family
+        data.quantity || "",               // Quantity
+        data.price || "",                  // Price
+        data.productDescription || "",     // Product Description
+        data.specifications || "",         // Specifications
+        data.images || "",                 // Images
+        data.extractionDate || new Date().toISOString() // Extraction Date
+      ];
+      
+      if (rowIndex > 0) {
+        // Update existing row
+        dataSheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+      } else {
+        // Add new row
+        dataSheet.appendRow(rowData);
+      }
+    } catch (error) {
+      console.error(`Error storing data: ${error.message}`);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get recent extractions
+   * @param {number} limit - Maximum number of results
+   * @return {Array} Recent extractions
+   */
+  getRecentExtractions(limit = 10) {
+    try {
+      const dataSheet = this.spreadsheet.getSheetByName("Data");
+      
+      if (!dataSheet) {
+        return [];
+      }
+      
+      // Get all data
+      const dataRange = dataSheet.getDataRange();
+      const dataValues = dataRange.getValues();
+      
+      if (dataValues.length <= 1) {
+        // Only header row exists
+        return [];
+      }
+      
+      // Get headers
+      const headers = dataValues[0];
+      
+      // Convert data to objects with header keys
+      const dataObjects = [];
+      
+      for (let i = 1; i < dataValues.length; i++) {
+        const rowData = {};
+        
+        for (let j = 0; j < headers.length; j++) {
+          rowData[headers[j]] = dataValues[i][j];
+        }
+        
+        dataObjects.push(rowData);
+      }
+      
+      // Sort by extraction date (descending)
+      dataObjects.sort((a, b) => {
+        if (a['Extraction Date'] && b['Extraction Date']) {
+          return new Date(b['Extraction Date']) - new Date(a['Extraction Date']);
+        }
+        return 0;
+      });
+      
+      // Limit results
+      return dataObjects.slice(0, limit);
+    } catch (error) {
+      console.error(`Error getting recent extractions: ${error.message}`);
+      return [];
+    }
+  }
+}
+
+/**
+ * LogRepository - Handles logging operations
+ */
+class LogRepository {
+  constructor() {
+    this.spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  }
+  
+  /**
+   * Log extraction operation
+   * @param {string} url - URL being processed
+   * @param {string} extractionId - Extraction ID
+   * @param {string} operation - Operation being performed
+   * @param {string} status - Operation status
+   * @param {string} details - Additional details
+   * @param {number} duration - Duration in ms (optional)
+   */
+  logOperation(url, extractionId, operation, status, details, duration = null) {
+    try {
+      const logSheet = this.spreadsheet.getSheetByName("Extraction Log");
+      
+      if (!logSheet) {
+        console.log("Extraction Log sheet not found");
+        return;
+      }
+      
+      const timestamp = new Date().toISOString();
+      const logData = [timestamp, url, extractionId, operation, status, details, duration];
+      
+      // Append to the log sheet
+      logSheet.appendRow(logData);
+    } catch (error) {
+      console.error(`Error logging operation: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Log error
+   * @param {string} url - URL being processed
+   * @param {string} extractionId - Extraction ID
+   * @param {string} errorType - Error type
+   * @param {string} errorMessage - Error message
+   * @param {string} stackTrace - Stack trace (optional)
+   */
+  logError(url, extractionId, errorType, errorMessage, stackTrace = null) {
+    try {
+      const errorSheet = this.spreadsheet.getSheetByName("Error Log");
+      
+      if (!errorSheet) {
+        console.log("Error Log sheet not found");
+        return;
+      }
+      
+      const timestamp = new Date().toISOString();
+      const errorData = [timestamp, url, extractionId, errorType, errorMessage, stackTrace];
+      
+      // Append to the error log sheet
+      errorSheet.appendRow(errorData);
+    } catch (error) {
+      console.error(`Failed to log error: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * CompanyExtractor - Extracts company information
+ */
+class CompanyExtractor {
+  /**
+   * Extract company information from HTML content
+   * @param {string} content - HTML content
+   * @param {string} url - Source URL
+   * @param {CompanyEntity} company - Company entity to populate
+   */
+  extract(content, url, company) {
+    try {
+      // Extract company name (from title, meta tags, or prominent headings)
+      const titleMatch = content.match(/<title>(.*?)<\/title>/i);
+      if (titleMatch) {
+        // Clean up title to get company name
+        let title = titleMatch[1].trim();
+        
+        // Remove common suffixes
+        title = title.replace(/\s*[-|]\s*(Home|Official Website|Official Site|Welcome).*$/i, "");
+        title = title.replace(/\s*[-|]\s*.*?(homepage|official).*$/i, "");
+        
+        company.companyName = title;
+      }
+      
+      // Try to get a more precise company name from structured data
+      const structuredData = this.extractStructuredData(content);
+      if (structuredData && structuredData.organization && structuredData.organization.name) {
+        company.companyName = structuredData.organization.name;
+      }
+      
+      // Extract company description
+      const metaDescription = content.match(/<meta\s+name="description"\s+content="([^"]*)"/i);
+      if (metaDescription) {
+        company.companyDescription = metaDescription[1].trim();
+      }
+      
+      // Look for about us sections for better description
+      const aboutSectionPatterns = [
+        /<(?:div|section)[^>]*\b(?:id|class)="[^"]*\babout\b[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section)>/i,
+        /<h\d[^>]*>\s*About\s+(?:Us|Company)\s*<\/h\d>([\s\S]*?)(?:<h\d|<\/div|<\/section)/i
+      ];
+      
+      for (const pattern of aboutSectionPatterns) {
+        const aboutMatch = content.match(pattern);
+        if (aboutMatch) {
+          const aboutText = this.cleanHtml(aboutMatch[1]);
+          if (aboutText.length > company.companyDescription.length) {
+            company.companyDescription = aboutText;
+          }
+          break;
+        }
+      }
+      
+      // Extract company type
+      const industryKeywords = [
+        {regex: /\b(?:tech|software|application|app|digital|IT|information technology)\b/i, type: "Technology"},
+        {regex: /\b(?:manufacturing|factory|production|industrial)\b/i, type: "Manufacturing"},
+        {regex: /\b(?:retail|shop|store|e-commerce|marketplace)\b/i, type: "Retail"},
+        {regex: /\b(?:healthcare|medical|hospital|clinic|pharma|health)\b/i, type: "Healthcare"},
+        {regex: /\b(?:financial|bank|insurance|investment|finance)\b/i, type: "Financial Services"},
+        {regex: /\b(?:food|restaurant|catering|bakery|café)\b/i, type: "Food & Beverage"},
+        {regex: /\b(?:tofu|vegan|plant-based|vegetarian|organic food)\b/i, type: "Plant-based Foods"}
+      ];
+      
+      // Check description for industry keywords
+      const textToAnalyze = company.companyDescription || content;
+      
+      for (const industry of industryKeywords) {
+        if (industry.regex.test(textToAnalyze)) {
+          company.companyType = industry.type;
+          break;
+        }
+      }
+      
+      // Extract logo URL
+      const logoPatterns = [
+        /<img[^>]*\b(?:id|class)="[^"]*\b(?:logo|brand|company-logo)\b[^"]*"[^>]*src="([^"]*)"/i,
+        /<img[^>]*\balt="[^"]*\b(?:logo|brand|company-logo)\b[^"]*"[^>]*src="([^"]*)"/i,
+        /<img[^>]*\bsrc="([^"]*logo[^"]*)"/i
+      ];
+      
+      for (const pattern of logoPatterns) {
+        const logoMatch = content.match(pattern);
+        if (logoMatch) {
+          company.logo = this.resolveUrl(logoMatch[1], url);
+          break;
+        }
+      }
+    } catch (e) {
+      console.error(`Error extracting company info: ${e.message}`);
+    }
+  }
+  
+  /**
+   * Extract structured data from HTML
+   * @param {string} content - HTML content
+   * @return {Object} Structured data
+   */
+  extractStructuredData(content) {
+    try {
+      const jsonLdMatch = content.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
+      if (jsonLdMatch) {
+        return JSON.parse(jsonLdMatch[1]);
+      }
+      return {};
+    } catch (e) {
+      console.error(`Error extracting structured data: ${e.message}`);
+      return {};
+    }
+  }
+  
+  /**
+   * Clean HTML content to plain text
+   * @param {string} html - HTML content
+   * @return {string} Plain text
+   */
+  cleanHtml(html) {
+    if (!html) return '';
+    
+    // Remove HTML tags
+    let text = html.replace(/<[^>]+>/g, ' ');
+    
+    // Decode HTML entities
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&apos;/g, "'");
+    text = text.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+    
+    // Normalize whitespace
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    return text;
+  }
+  
+  /**
+   * Resolve relative URL to absolute URL
+   * @param {string} url - Relative or absolute URL
+   * @param {string} base - Base URL
+   * @return {string} Absolute URL
+   */
+  resolveUrl(url, base) {
+    try {
+      // Check if URL is already absolute
+      if (url.match(/^https?:\/\//)) {
+        return url;
+      }
+      
+      // Handle protocol-relative URLs
+      if (url.startsWith('//')) {
+        const baseProtocol = base.split('://')[0];
+        return `${baseProtocol}:${url}`;
+      }
+      
+      // Parse base URL
+      let baseUrl = base;
+      if (!baseUrl.endsWith('/')) {
+        // Remove path component if base doesn't end with /
+        const lastSlashIndex = baseUrl.lastIndexOf('/');
+        if (lastSlashIndex > 8) { // 8 is minimum index for http:// or https://
+          baseUrl = baseUrl.substring(0, lastSlashIndex + 1);
+        } else {
+          baseUrl = baseUrl + '/';
+        }
+      }
+      
+      // Handle root-relative URLs
+      if (url.startsWith('/')) {
+        // Extract domain from base URL
+        const domainMatch = baseUrl.match(/^(https?:\/\/[^/]+)\//);
+        if (domainMatch) {
+          return domainMatch[1] + url;
+        }
+        return baseUrl + url.substring(1);
+      }
+      
+      // Handle relative URLs
+      return baseUrl + url;
+    } catch (e) {
+      console.error(`Error resolving URL: ${e.message}`);
+      return url;
+    }
+  }
+}
+
+/**
+ * ContactExtractor - Extracts contact information
+ */
+class ContactExtractor {
+  /**
+   * Extract contact information from HTML content
+   * @param {string} content - HTML content
+   * @param {string} url - Source URL
+   * @param {CompanyEntity} company - Company entity to populate
+   */
+  extract(content, url, company) {
+    try {
+      // Look for contact page link
+      let contactPageUrl = null;
+      const contactLinkPatterns = [
+        /<a[^>]*\bhref="([^"]*contact[^"]*)"/i,
+        /<a[^>]*\bhref="([^"]*about-us[^"]*)"/i
+      ];
+      
+      for (const pattern of contactLinkPatterns) {
+        const match = content.match(pattern);
+        if (match) {
+          contactPageUrl = this.resolveUrl(match[1], url);
+          break;
+        }
+      }
+      
+      // If contact page found, fetch and analyze it
+      let contactPageContent = "";
+      if (contactPageUrl && contactPageUrl !== url) {
+        try {
+          const response = UrlFetchApp.fetch(contactPageUrl, {
+            muteHttpExceptions: true,
+            followRedirects: true
+          });
+          contactPageContent = response.getContentText();
+        } catch (error) {
+          console.error(`Error fetching contact page: ${error.message}`);
+        }
+      }
+      
+      // Combine main content and contact page content
+      const combinedContent = content + (contactPageContent || "");
+      
+      // Extract emails
+      const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+      const emailMatches = combinedContent.match(emailPattern) || [];
+      
+      if (emailMatches && emailMatches.length > 0) {
+        company.emails = Array.from(new Set(emailMatches)); // Remove duplicates
+      }
+      
+      // Extract phone numbers
+      const phonePatterns = [
+        /\b\+\d{1,3}[\s.-]?\(?\d{1,4}\)?[\s.-]?\d{1,4}[\s.-]?\d{1,9}\b/g,  // International format
+        /\b\(\d{3}\)[\s.-]?\d{3}[\s.-]?\d{4}\b/g,  // US format (xxx) xxx-xxxx
+        /\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b/g       // Simple format xxx-xxx-xxxx
+      ];
+      
+      const foundPhones = [];
+      for (const pattern of phonePatterns) {
+        const phoneMatches = combinedContent.match(pattern) || [];
+        foundPhones.push(...phoneMatches);
+      }
+      
+      if (foundPhones.length > 0) {
+        company.phones = Array.from(new Set(foundPhones)); // Remove duplicates
+      }
+      
+      // Extract addresses
+      const addressPatterns = [
+        // Street, City, State ZIP format
+        /\d+\s+[A-Za-z0-9\s.,]+\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl|Square|Sq)[,.\s]*(?:[A-Za-z\s]+)[,.\s]*(?:[A-Z]{2}|\b[A-Za-z]+\b)[,.\s]*(?:\d{5}(?:-\d{4})?)?/gi
+      ];
+      
+      for (const pattern of addressPatterns) {
+        const addressMatches = combinedContent.match(pattern) || [];
+        company.addresses.push(...addressMatches.map(addr => addr.trim()));
+      }
+      
+      // Remove duplicates
+      company.addresses = Array.from(new Set(company.addresses));
+    } catch (e) {
+      console.error(`Error extracting contact info: ${e.message}`);
+    }
+  }
+  
+  /**
+   * Resolve relative URL to absolute URL
+   * @param {string} url - Relative or absolute URL
+   * @param {string} base - Base URL
+   * @return {string} Absolute URL
+   */
+  resolveUrl(url, base) {
+    // Implementation same as in CompanyExtractor
+    // (Would use a utility class in a real implementation)
+    
+    try {
+      // Check if URL is already absolute
+      if (url.match(/^https?:\/\//)) {
+        return url;
+      }
+      
+      // Handle protocol-relative URLs
+      if (url.startsWith('//')) {
+        const baseProtocol = base.split('://')[0];
+        return `${baseProtocol}:${url}`;
+      }
+      
+      // Parse base URL
+      let baseUrl = base;
+      if (!baseUrl.endsWith('/')) {
+        // Remove path component if base doesn't end with /
+        const lastSlashIndex = baseUrl.lastIndexOf('/');
+        if (lastSlashIndex > 8) { // 8 is minimum index for http:// or https://
+          baseUrl = baseUrl.substring(0, lastSlashIndex + 1);
+        } else {
+          baseUrl = baseUrl + '/';
+        }
+      }
+      
+      // Handle root-relative URLs
+      if (url.startsWith('/')) {
+        // Extract domain from base URL
+        const domainMatch = baseUrl.match(/^(https?:\/\/[^/]+)\//);
+        if (domainMatch) {
+          return domainMatch[1] + url;
+        }
+        return baseUrl + url.substring(1);
+      }
+      
+      // Handle relative URLs
+      return baseUrl + url;
+    } catch (e) {
+      console.error(`Error resolving URL: ${e.message}`);
+      return url;
+    }
+  }
+}
+
+/**
+ * ProductExtractor - Extracts product information
+ */
+class ProductExtractor {
+  /**
+   * @param {Object} config - Configuration
+   */
+  constructor(config) {
+    this.config = config;
+  }
+  
+  /**
+   * Extract product information
+   * @param {string} content - HTML content
+   * @param {string} url - Source URL
+   * @param {CompanyEntity} company - Company entity to populate
+   * @param {string} extractionId - Extraction ID for tracking
+   */
+  extract(content, url, company, extractionId) {
+    try {
+      // Extract categories from menu structure or breadcrumbs
+      const categories = this.extractCategories(content);
+      
+      // Extract product links from the page
+      const productLinks = this.extractProductLinks(content, url);
+      
+      if (productLinks.length === 0) {
+        // If no product links found, try to extract product from current page
+        this.extractProductFromPage(content, url, company);
+        return;
+      }
+      
+      // Process product links if configured to do so
+      if (this.config.EXTRACTION.FOLLOW_LINKS && productLinks.length > 0) {
+        // Limit the number of products to process
+        const linksToProcess = productLinks.slice(0, Math.min(
+          productLinks.length, 
+          this.config.MAX_PRODUCT_PAGES
+        ));
+        
+        // Process each product link
+        for (let i = 0; i < linksToProcess.length; i++) {
+          const productLink = linksToProcess[i];
+          
+          // Check if extraction is stopped
+          if (extractionId && 
+              extractionStates[extractionId] && 
+              extractionStates[extractionId].stopped) {
+            break;
+          }
+          
+          // Wait if paused
+          ExtractionState.waitIfPaused(extractionId);
+          
+          // Process product page
+          const product = this.processProductPage(productLink.url, productLink.text);
+          
+          if (product && product.productName) {
+            // Set category information from global categories
+            if (categories.length > 0) {
+              product.mainCategory = categories[0] || "";
+              if (categories.length > 1) {
+                product.subCategory = categories[1] || "";
+              }
+              if (categories.length > 2) {
+                product.productFamily = categories[2] || "";
+              }
+            }
+            
+            // Add to company's products
+            company.products.push(product);
+          }
+          
+          // Small delay between product page requests
+          Utilities.sleep(300);
+        }
+      }
+    } catch (e) {
+      console.error(`Error extracting product info: ${e.message}`);
+    }
+  }
+  
+  /**
+   * Extract product information from current page
+   * @param {string} content - HTML content
+   * @param {string} url - Source URL
+   * @param {CompanyEntity} company - Company entity to populate
+   */
+  extractProductFromPage(content, url, company) {
+    try {
+      // Look for product sections directly on the page
+      const productSectionPatterns = [
+        /<(?:div|section)[^>]*\b(?:id|class)="[^"]*\b(?:product|item)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section)>/i,
+        /<h\d[^>]*>\s*(?:Products|Our Products|Featured Products)\s*<\/h\d>([\s\S]*?)(?:<h\d|<\/div|<\/section)/i
+      ];
+      
+      for (const pattern of productSectionPatterns) {
+        const match = content.match(pattern);
+        if (match) {
+          const productData = this.extractProductDetails(match[1], url);
+          
+          if (productData.productName) {
+            const product = new ProductEntity();
+            product.productName = productData.productName;
+            product.productUrl = url;
+            product.description = productData.description || "";
+            product.price = productData.price || "";
+            product.quantity = productData.quantity || "";
+            product.specifications = productData.specifications || "";
+            product.images = productData.images || [];
+            
+            company.products.push(product);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`Error extracting product from page: ${e.message}`);
+    }
+  }
+  
+  /**
+   * Process a product page
+   * @param {string} url - Product page URL
+   * @param {string} linkText - Text from link
+   * @return {ProductEntity} Product entity
+   */
+  processProductPage(url, linkText) {
+    try {
+      // Fetch the product page
+      const response = UrlFetchApp.fetch(url, {
+        muteHttpExceptions: true,
+        followRedirects: true
+      });
+      
+      const content = response.getContentText();
+      
+      // Create new product entity
+      const product = new ProductEntity();
+      product.productUrl = url;
+      
+      // Use link text as fallback product name
+      if (linkText) {
+        product.productName = linkText;
+      }
+      
+      // Extract product details
+      const details = this.extractProductDetails(content, url);
+      
+      // Update product with extracted details
+      if (details.productName) {
+        product.productName = details.productName;
+      }
+      
+      product.price = details.price || "";
+      product.description = details.description || "";
+      product.quantity = details.quantity || "";
+      product.specifications = details.specifications || "";
+      product.images = details.images || [];
+      
+      return product;
+    } catch (e) {
+      console.error(`Error processing product page: ${e.message}`);
+      return null;
+    }
+  }
+  
+  /**
+   * Extract product links from HTML content
+   * @param {string} content - HTML content
+   * @param {string} baseUrl - Base URL for resolving
+   * @return {Array} Product links
+   */
+  extractProductLinks(content, baseUrl) {
+    try {
+      const productLinks = [];
+      
+      // Look for links in product sections
+      const productSectionPatterns = [
+        /<(?:div|section|ul)[^>]*\b(?:id|class)="[^"]*\b(?:product|item|listing|catalog|shop)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|ul)>/gi
+      ];
+      
+      let productSections = [];
+      
+      // Extract product sections
+      for (const pattern of productSectionPatterns) {
+        let match;
+        const regex = new RegExp(pattern);
+        while ((match = regex.exec(content)) !== null) {
+          productSections.push(match[1]);
+        }
+      }
+      
+      // If no dedicated product sections found, use the whole content
+      if (productSections.length === 0) {
+        productSections = [content];
+      }
+      
+      // Extract links from product sections
+      for (const section of productSections) {
+        const linkPattern = /<a\s+[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+        let linkMatch;
+        
+        while ((linkMatch = linkPattern.exec(section)) !== null) {
+          const href = linkMatch[1];
+          const text = this.cleanHtml(linkMatch[2]).trim();
+          
+          // Skip empty links, non-product links, or navigation links
+          if (!href || href === "#" || href.startsWith("javascript:") || 
+              href.includes("login") || href.includes("cart") || 
+              href.includes("account") || href.includes("contact")) {
+            continue;
+          }
+          
+          // Skip links without text content
+          if (!text) continue;
+          
+          // Resolve relative URL
+          const fullUrl = this.resolveUrl(href, baseUrl);
+          
+          // Only include links from the same domain
+          if (this.isSameDomain(fullUrl, baseUrl) && !this.isExcludedPath(fullUrl)) {
+            // Check if this link seems product-related
+            if (this.isLikelyProductLink(fullUrl, text)) {
+              productLinks.push({
+                url: fullUrl,
+                text: text
+              });
+            }
+          }
+        }
+      }
+      
+      return productLinks;
+    } catch (e) {
+      console.error(`Error extracting product links: ${e.message}`);
+      return [];
+    }
+  }
+  
+  /**
+   * Extract categories from HTML content
+   * @param {string} content - HTML content
+   * @return {Array} Categories
+   */
+  extractCategories(content) {
+    try {
+      const categories = [];
+      
+      // Try to extract from breadcrumbs
+      const breadcrumbPatterns = [
+        /<(?:nav|div|ul)[^>]*\b(?:id|class)="[^"]*\b(?:breadcrumb|path|navigation)[^"]*"[^>]*>([\s\S]*?)<\/(?:nav|div|ul)>/i
+      ];
+      
+      for (const pattern of breadcrumbPatterns) {
+        const breadcrumbMatch = content.match(pattern);
+        if (breadcrumbMatch) {
+          const breadcrumbContent = breadcrumbMatch[1];
+          const linkPattern = /<a[^>]*>([\s\S]*?)<\/a>/gi;
+          let linkMatch;
+          
+          while ((linkMatch = linkPattern.exec(breadcrumbContent)) !== null) {
+            const text = this.cleanHtml(linkMatch[1]).trim();
+            
+            // Skip "Home", "Index", etc.
+            if (text && !["home", "index", "main", "start"].includes(text.toLowerCase())) {
+              categories.push(text);
+            }
+          }
+          
+          if (categories.length > 0) {
+            break; // Found categories in breadcrumbs
+          }
+        }
+      }
+      
+      return categories;
+    } catch (e) {
+      console.error(`Error extracting categories: ${e.message}`);
+      return [];
+    }
+  }
+  
+  /**
+   * Extract product details from HTML content
+   * @param {string} content - HTML content
+   * @param {string} url - Source URL
+   * @return {Object} Product details
+   */
+  extractProductDetails(content, url) {
+    try {
+      const productData = {
+        productName: "",
+        description: "",
+        price: "",
+        quantity: "",
+        specifications: "",
+        images: []
+      };
+      
+      // Extract product name from structured data
+      const structuredData = this.extractStructuredData(content);
+      if (structuredData && structuredData.product && structuredData.product.name) {
+        productData.productName = structuredData.product.name;
+      } else {
+        // Try common product name patterns
+        const productNamePatterns = [
+          /<h1[^>]*\b(?:id|class)="[^"]*\b(?:product|item|title)[^"]*"[^>]*>([\s\S]*?)<\/h1>/i,
+          /<h1[^>]*>([\s\S]*?)<\/h1>/i
+        ];
+        
+        for (const pattern of productNamePatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            productData.productName = this.cleanHtml(match[1]).trim();
+            break;
+          }
+        }
+      }
+      
+      // Extract product price
+      if (structuredData && structuredData.product && structuredData.product.offers && 
+          structuredData.product.offers.price) {
+        productData.price = structuredData.product.offers.price;
+      } else {
+        // Try common price patterns
+        const pricePatterns = [
+          /<(?:div|span)[^>]*\b(?:id|class)="[^"]*\b(?:price|product-price)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|span)>/i,
+          /[$€£¥]\s*\d+(?:\.\d{1,2})?/,
+          /\d+(?:\.\d{1,2})?\s*[$€£¥]/
+        ];
+        
+        for (const pattern of pricePatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            productData.price = this.cleanHtml(match[1] || match[0]).trim();
+            break;
+          }
+        }
+      }
+      
+      // Extract product description
+      if (structuredData && structuredData.product && structuredData.product.description) {
+        productData.description = structuredData.product.description;
+      } else {
+        // Try common description patterns
+        const descriptionPatterns = [
+          /<(?:div|section)[^>]*\b(?:id|class)="[^"]*\b(?:product|item)[^"]*-description[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section)>/i,
+          /<(?:div|section)[^>]*\b(?:id|class)="[^"]*\b(?:description)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section)>/i
+        ];
+        
+        for (const pattern of descriptionPatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            productData.description = this.cleanHtml(match[1]).trim();
+            break;
+          }
+        }
+      }
+      
+      // Extract product images
+      if (structuredData && structuredData.product && structuredData.product.image) {
+        const images = Array.isArray(structuredData.product.image) 
+          ? structuredData.product.image 
+          : [structuredData.product.image];
+        
+        productData.images = images.map(img => this.resolveUrl(img, url));
+      } else {
+        // Try common image patterns
+        const imagePatterns = [
+          /<img[^>]*\b(?:id|class)="[^"]*\b(?:product|item)[^"]*-image[^"]*"[^>]*src="([^"]*)"/gi,
+          /<meta[^>]*\bproperty="og:image"[^>]*\bcontent="([^"]*)"/i
+        ];
+        
+        for (const pattern of imagePatterns) {
+          let match;
+          const regex = new RegExp(pattern);
+          while ((match = regex.exec(content)) !== null) {
+            const imgUrl = this.resolveUrl(match[1], url);
+            productData.images.push(imgUrl);
+          }
+        }
+      }
+      
+      return productData;
+    } catch (e) {
+      console.error(`Error extracting product details: ${e.message}`);
+      return {
+        productName: "",
+        description: "",
+        price: "",
+        quantity: "",
+        specifications: "",
+        images: []
+      };
+    }
+  }
+  
+  // Utility methods
+  
+  extractStructuredData(content) {
+    try {
+      const jsonLdMatch = content.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
+      if (jsonLdMatch) {
+        return JSON.parse(jsonLdMatch[1]);
+      }
+      return {};
+    } catch (e) {
+      console.error(`Error extracting structured data: ${e.message}`);
+      return {};
+    }
+  }
+  
+  cleanHtml(html) {
+    if (!html) return '';
+    
+    // Remove HTML tags
+    let text = html.replace(/<[^>]+>/g, ' ');
+    
+    // Decode HTML entities
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    
+    // Normalize whitespace
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    return text;
+  }
+  
+  resolveUrl(url, base) {
+    try {
+      // Check if URL is already absolute
+      if (url.match(/^https?:\/\//)) {
+        return url;
+      }
+      
+      // Handle protocol-relative URLs
+      if (url.startsWith('//')) {
+        const baseProtocol = base.split('://')[0];
+        return `${baseProtocol}:${url}`;
+      }
+      
+      // Parse base URL
+      let baseUrl = base;
+      if (!baseUrl.endsWith('/')) {
+        // Remove path component if base doesn't end with /
+        const lastSlashIndex = baseUrl.lastIndexOf('/');
+        if (lastSlashIndex > 8) { // 8 is minimum index for http:// or https://
+          baseUrl = baseUrl.substring(0, lastSlashIndex + 1);
+        } else {
+          baseUrl = baseUrl + '/';
+        }
+      }
+      
+      // Handle root-relative URLs
+      if (url.startsWith('/')) {
+        // Extract domain from base URL
+        const domainMatch = baseUrl.match(/^(https?:\/\/[^/]+)\//);
+        if (domainMatch) {
+          return domainMatch[1] + url;
+        }
+        return baseUrl + url.substring(1);
+      }
+      
+      // Handle relative URLs
+      return baseUrl + url;
+    } catch (e) {
+      console.error(`Error resolving URL: ${e.message}`);
+      return url;
+    }
+  }
+  
+  isSameDomain(url1, url2) {
+    try {
+      // Extract domain from URLs
+      const getDomain = (url) => {
+        const match = url.match(/^https?:\/\/([^/]+)/i);
+        return match ? match[1] : '';
+      };
+      
+      const domain1 = getDomain(url1);
+      const domain2 = getDomain(url2);
+      
+      // Compare domains
+      return domain1 === domain2;
+    } catch (e) {
+      console.error(`Error comparing domains: ${e.message}`);
+      return false;
+    }
+  }
+  
+  isExcludedPath(url) {
+    try {
+      const excludedPaths = [
+        'about', 'contact', 'privacy', 'terms', 'faq', 'help', 'support',
+        'blog', 'news', 'login', 'register', 'account', 'cart', 'checkout'
+      ];
+      
+      const parsedUrl = new URL(url);
+      const path = parsedUrl.pathname.toLowerCase();
+      
+      return excludedPaths.some(excluded => 
+        path === `/${excluded}` || 
+        path === `/${excluded}/` || 
+        path.includes(`/${excluded}/`)
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  isLikelyProductLink(url, text) {
+    try {
+      // Check URL for product-related terms
+      const productTermsInUrl = [
+        'product', 'item', 'shop', 'buy', 'purchase', 'catalog'
+      ];
+      
+      const parsedUrl = new URL(url);
+      const urlLower = parsedUrl.href.toLowerCase();
+      
+      const hasProductTermInUrl = productTermsInUrl.some(term => 
+        urlLower.includes(term)
+      );
+      
+      // Check if URL has product ID pattern
+      const hasProductIdPattern = /\/p\/|\/product\/|\/item\/|\/prod[_-]?id\//.test(urlLower);
+      
+      // Check text for product indicators
+      const textLower = text.toLowerCase();
+      const hasProductIndicatorInText = textLower.includes('buy') || 
+                                      textLower.includes('shop') || 
+                                      textLower.includes('view');
+      
+      return hasProductTermInUrl || hasProductIdPattern || hasProductIndicatorInText;
+    } catch (e) {
+      return false;
+    }
+  }
+}
+
+/**
+ * AiEnricher - Enriches data using AI services
+ */
+class AiEnricher {
+  /**
+   * @param {Object} config - Configuration
+   */
+  constructor(config) {
+    this.config = config;
+  }
+  
+  /**
+   * Enrich company data with AI
+   * @param {CompanyEntity} company - Company entity to enrich
+   */
+  async enrichData(company) {
+    try {
+      // Skip if no API key or endpoint
+      if (!this.config.API.AZURE.OPENAI.KEY || !this.config.API.AZURE.OPENAI.ENDPOINT) {
+        return;
+      }
+      
+      const apiKey = this.config.API.AZURE.OPENAI.KEY;
+      const endpoint = this.config.API.AZURE.OPENAI.ENDPOINT;
+      const deployment = this.config.API.AZURE.OPENAI.DEPLOYMENT;
+      
+      // Prepare prompt for company data enrichment
+      const prompt = `
+        Analyze this company data and provide enriched information:
+        
+        Company Name: ${company.companyName || 'Unknown'}
+        Company Description: ${company.companyDescription || 'None provided'}
+        Company Type/Industry: ${company.companyType || 'Unknown'}
+        Products: ${company.products.map(p => p.productName).join(', ') || 'None found'}
+        
+        Please provide:
+        1. A more accurate company type/industry classification
+        2. A categorization of the products found
+        3. If the company appears to be focused on specific markets or demographics
+        
+        Format your response as JSON with keys: refinedCompanyType, productCategories, targetMarket
+      `;
+      
+      // Call Azure OpenAI API
+      const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=2023-05-15`;
+      
+      const requestBody = {
+        messages: [
+          {
+            role: "system",
+            content: "You are an AI assistant that specializes in analyzing company and product information to provide structured business intelligence data."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: this.config.API.AZURE.OPENAI.TEMPERATURE,
+        max_tokens: this.config.API.AZURE.OPENAI.MAX_TOKENS
+      };
+      
+      const options = {
+        method: 'post',
+        contentType: 'application/json',
+        headers: {
+          'api-key': apiKey
+        },
+        payload: JSON.stringify(requestBody),
+        muteHttpExceptions: true
+      };
+      
+      const response = UrlFetchApp.fetch(apiUrl, options);
+      const responseData = JSON.parse(response.getContentText());
+      
+      if (responseData.error) {
+        throw new Error(responseData.error.message);
+      }
+      
+      if (responseData.choices && responseData.choices.length > 0) {
+        try {
+          const aiResponse = responseData.choices[0].message.content;
+          
+          // Extract JSON from response text
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const enrichedData = JSON.parse(jsonMatch[0]);
+            
+            // Update company entity with enriched data
+            if (enrichedData.refinedCompanyType && 
+               (!company.companyType || company.companyType === "Other" || company.companyType === "Technology")) {
+              company.companyType = enrichedData.refinedCompanyType;
+            }
+            
+            // Add main category to products if available
+            if (enrichedData.productCategories) {
+              const category = Array.isArray(enrichedData.productCategories) 
+                ? enrichedData.productCategories[0] 
+                : enrichedData.productCategories;
+              
+              for (const product of company.products) {
+                if (!product.mainCategory) {
+                  product.mainCategory = category;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error parsing AI response: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error enriching data with AI: ${error.message}`);
+    }
+  }
+}
